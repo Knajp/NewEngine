@@ -1,0 +1,6 @@
+Makefile
+NewEngine.make
+bin/
+obj/
+.vscode/
+
