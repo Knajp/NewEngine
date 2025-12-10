@@ -1,7 +1,7 @@
 workspace "NewEngine"
    configurations { "Debug", "Release" }
-   platforms {"Win64"}
-   --toolset "clang"
+   platforms {"Linux"}
+   toolset "clang"
 
 project "NewEngine"
    kind "ConsoleApp"
@@ -24,6 +24,3 @@ project "NewEngine"
    filter "toolset:clang"
       buildoptions { "-std=c++17", "-Wall" }
       linkoptions { "-stdlib=libc++" }
-
-    filter "platforms:Win64"
-        links {"glfw3", "glfw3_mt", "glfw3dll"}
