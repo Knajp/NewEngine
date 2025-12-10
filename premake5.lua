@@ -1,6 +1,7 @@
 workspace "NewEngine"
    configurations { "Debug", "Release" }
-   toolset "clang"
+   platforms {"Win64"}
+   --toolset "clang"
 
 project "NewEngine"
    kind "ConsoleApp"
@@ -15,7 +16,7 @@ project "NewEngine"
    filter "configurations:Debug"
       defines { "DEBUG" }
       symbols "On"
-`
+
    filter "configurations:Release"
       defines { "NDEBUG" }
       optimize "On"
@@ -23,3 +24,6 @@ project "NewEngine"
    filter "toolset:clang"
       buildoptions { "-std=c++17", "-Wall" }
       linkoptions { "-stdlib=libc++" }
+
+    filter "platforms:Win64"
+        links {"glfw3", "glfw3_mt", "glfw3dll"}

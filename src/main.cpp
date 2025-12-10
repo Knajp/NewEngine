@@ -1,7 +1,12 @@
-#include <iostream>
+#include "Application.hpp"
 
 int main(int argc, char** argv)
 {
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
+    ke::Core::Application& APPLICATION = ke::Core::Application::getInstance();
+    try
+    {
+        APPLICATION.Run();
+    }
+    catch (std::runtime_error& e) { std::cerr << e.what() << std::endl; }
+
 }
