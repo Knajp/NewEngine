@@ -17,6 +17,8 @@ void ke::Core::Application::init()
 {
     Graphics::Window::initGLFW();
     mWindow = std::make_unique<Graphics::Window>(800, 800, "Hello, World!");
+
+    mRenderer.init();
 }
 
 void ke::Core::Application::run()
@@ -29,5 +31,6 @@ void ke::Core::Application::run()
 
 void ke::Core::Application::terminate()
 {
+    mRenderer.terminate();
     Graphics::Window::exitGLFW();
 }

@@ -1,26 +1,50 @@
 workspace "NewEngine"
-   configurations { "Debug", "Release" }
-   platforms {"Linux"}
-   toolset "clang"
+    configurations { "Debug", "Release" }
+    platforms { "x64" }
+
+    filter "platforms:x64"
+        architecture "x86_64"
+    filter {}
+
+    filter "system:linux"
+        toolset "clang"
+
+        
+    filter {}
 
 project "NewEngine"
-   kind "ConsoleApp"
-   language "C++"
-   targetdir "bin/%{cfg.buildcfg}"
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++20"
+    targetdir "bin/%{cfg.buildcfg}"
 
-   files { "**.h", "**.c", "**.cpp", "**.hpp" }
+    files { "**.h", "**.c", "**.cpp", "**.hpp" }
 
-   includedirs {"vendor/include"}
-   libdirs {"vendor/lib"}
+    includedirs {
+        "vendor/include",
+        "/usr/local/include"
+    }
 
-   filter "configurations:Debug"
-      defines { "DEBUG" }
-      symbols "On"
+    libdirs {
+        "vendor/lib",
+        "/usr/local/lib"
+    }
 
-   filter "configurations:Release"
-      defines { "NDEBUG" }
-      optimize "On"
+    links {
+        "glfw3",
+        "vulkan",
+        "dl",
+        "pthread",
+        "X11",
+        "Xxf86vm",
+        "Xrandr",
+        "Xi"
+    }
 
-   filter "toolset:clang"
-      buildoptions { "-std=c++17", "-Wall" }
-      linkoptions { "-stdlib=libc++" }
+    filter "configurations:Debug"
+        defines { "DEBUG" }
+        symbols "On"
+
+    filter "configurations:Release"
+        defines { "NDEBUG" }
+        optimize "On"
