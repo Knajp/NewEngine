@@ -1,14 +1,14 @@
 #include "Logger.hpp"
 
-ke::util::Logger::Logger(const char *name, spdlog::level::level_enum level)
+ke::util::Logger::Logger(const char *name)
 {
-    mLogger = std::make_shared<spdlog::logger>(name, level);
-    
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    mLogger = std::make_shared<spdlog::logger>(name, console_sink);
 }
 
 void ke::util::Logger::initLoggers()
 {
-    spdlog::set_pattern("%^[%H:%M:%S] %n: %v %$");
+    spdlog::set_pattern("%^[%H:%M:%S] %n: %v%$");
     spdlog::set_level(spdlog::level::debug);
 }
 

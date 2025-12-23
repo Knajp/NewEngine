@@ -1,5 +1,6 @@
 #pragma once
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <memory.h>
 
 namespace ke
@@ -10,7 +11,7 @@ namespace ke
         {
         public:
             Logger() = default;
-            Logger(const char* name, spdlog::level::level_enum level);
+            Logger(const char* name);
 
             static void initLoggers();
 

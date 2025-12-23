@@ -1,5 +1,6 @@
 #include<iostream>
 #include <GLFW/glfw3.h>
+#include "../Utility/Logger.hpp"
 
 namespace ke
 {
@@ -23,7 +24,6 @@ namespace ke
 
 		private:
 			GLFWwindow* pWindow;
-
 		};
 	}
 }

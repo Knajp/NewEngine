@@ -18,6 +18,8 @@ namespace ke
 			std::unique_ptr<Graphics::Window> mWindow;
 			Graphics::Renderer& mRenderer = Graphics::Renderer::getInstance();
 
+			util::Logger mLogger = util::Logger("Main Application Logger");
+
 			void init();
 			void run();
 			void terminate();
