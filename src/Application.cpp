@@ -21,7 +21,7 @@ void ke::Core::Application::init()
     mLogger.info("Created window.");
 
     mLogger.trace("Requesting renderer init.");
-    mRenderer.init();
+    mRenderer.init(mWindow->getWindowHandle());
     mLogger.trace("Finished initializing renderer.");
 
     mLogger.info("Finished application initialization.");

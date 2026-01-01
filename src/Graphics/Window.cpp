@@ -13,6 +13,8 @@ ke::Graphics::Window::~Window()
 void ke::Graphics::Window::initGLFW()
 {
 	glfwInit();
+
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 }
 
 void ke::Graphics::Window::exitGLFW()
