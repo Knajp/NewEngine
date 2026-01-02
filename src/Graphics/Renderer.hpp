@@ -46,7 +46,7 @@ namespace ke
 
             void createGraphicsPipeline();
             VkShaderModule createShaderModule(const std::vector<char>& code);
-            
+            void createRenderPass();
 
             //DEBUG
             bool checkValidationLayerSupport();
@@ -71,6 +71,11 @@ namespace ke
             VkFormat mSwapchainFormat;
             VkExtent2D mSwapchainExtent;
             std::vector<VkImageView> mSwapchainImageViews;
+
+            VkPipelineLayout mPipelineLayout;
+            VkPipeline mPipeline;
+            VkRenderPass mRenderPass;
+
             //DEBUG
             VkDebugUtilsMessengerEXT mDebugMessenger;
         };
