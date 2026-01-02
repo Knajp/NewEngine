@@ -378,6 +378,46 @@ void ke::Graphics::Renderer::createSwapchainImageViews()
     }
 }
 
+void ke::Graphics::Renderer::createGraphicsPipeline()
+{
+    auto vertexCode = ke::util::readFile("shader/bin/vert.spv");
+    auto fragCode = ke::util::readFile("shader/bin/frag.spv");
+
+    VkShaderModule vertexModule = createShaderModule(vertexCode);
+    VkShaderModule fragmentModule = createShaderModule(fragCode);
+
+    VkPipelineShaderStageCreateInfo vertStageInfo{};
+    vertStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertStageInfo.module = vertexModule;
+    vertStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragStageInfo{};
+    fragStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragStageInfo.module = fragmentModule;
+    fragStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo stageInfos[] = {vertStageInfo, fragStageInfo};
+
+
+    vkDestroyShaderModule(mDevice, vertexModule, nullptr);
+    vkDestroyShaderModule(mDevice, fragmentModule, nullptr);
+}
+
+VkShaderModule ke::Graphics::Renderer::createShaderModule(const std::vector<char> &code)
+{
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    
+    VkShaderModule shaderModule;
+    if(vkCreateShaderModule(mDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+        mLogger.error("Failed to create shader module!");
+
+}
+
 bool ke::Graphics::Renderer::checkValidationLayerSupport()
 {
     uint32_t layerCount;

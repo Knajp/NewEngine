@@ -44,6 +44,10 @@ namespace ke
             void createSwapchain(GLFWwindow* window);
             void createSwapchainImageViews();
 
+            void createGraphicsPipeline();
+            VkShaderModule createShaderModule(const std::vector<char>& code);
+            
+
             //DEBUG
             bool checkValidationLayerSupport();
             void setupDebugMessenger();
