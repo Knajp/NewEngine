@@ -48,6 +48,11 @@ namespace ke
             VkShaderModule createShaderModule(const std::vector<char>& code);
             void createRenderPass();
 
+            void createFramebuffers();
+            void createCommandPool();
+            void createCommandBuffer();
+            void recordCommandBuffer(VkCommandBuffer buffer, uint32_t imageIndex);    
+
             //DEBUG
             bool checkValidationLayerSupport();
             void setupDebugMessenger();
@@ -75,6 +80,11 @@ namespace ke
             VkPipelineLayout mPipelineLayout;
             VkPipeline mPipeline;
             VkRenderPass mRenderPass;
+
+            VkCommandPool mCommandPool;
+            VkCommandBuffer mCommandBuffer;
+
+            std::vector<VkFramebuffer> mSwapchainFramebuffers;
 
             //DEBUG
             VkDebugUtilsMessengerEXT mDebugMessenger;

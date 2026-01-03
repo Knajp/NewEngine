@@ -35,12 +35,17 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
     createSwapchainImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createFramebuffers();
+    createCommandPool();
 
     mLogger.info("Initialized renderer.");
 }
 
 void ke::Graphics::Renderer::terminate()
 {
+    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+    for(auto framebuffer : mSwapchainFramebuffers)
+        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
@@ -537,6 +542,97 @@ void ke::Graphics::Renderer::createRenderPass()
 
 }
 
+void ke::Graphics::Renderer::createFramebuffers()
+{
+    mSwapchainFramebuffers.resize(mSwapchainImageViews.size());
+
+    for(size_t i = 0; i < mSwapchainImageViews.size(); i++)
+    {
+        VkImageView attachments[] = {mSwapchainImageViews[i]};
+
+        VkFramebufferCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        createInfo.renderPass = mRenderPass;
+        createInfo.attachmentCount = 1;
+        createInfo.pAttachments = attachments;
+        createInfo.height = mSwapchainExtent.height;
+        createInfo.width = mSwapchainExtent.width;
+        createInfo.layers = 1;
+
+        if(vkCreateFramebuffer(mDevice, &createInfo, nullptr, &mSwapchainFramebuffers[i]) != VK_SUCCESS)
+            mLogger.error("Failed to create framebuffer!");
+    }
+}
+
+void ke::Graphics::Renderer::createCommandPool()
+{
+    util::QueueFamilyIndices indices = findQueueFamilyIndices(mPhysicalDevice);
+
+    VkCommandPoolCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    createInfo.queueFamilyIndex = indices.graphicsFamily.value();
+
+    if(vkCreateCommandPool(mDevice, &createInfo, nullptr, &mCommandPool) != VK_SUCCESS)
+        mLogger.critical("Failed to create a command pool!");
+}
+
+void ke::Graphics::Renderer::createCommandBuffer()
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandBufferCount = 1;
+    allocInfo.commandPool = mCommandPool;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+    if(vkAllocateCommandBuffers(mDevice, &allocInfo, &mCommandBuffer) != VK_SUCCESS)
+        mLogger.critical("Failed to allocate command buffers!");
+}
+
+void ke::Graphics::Renderer::recordCommandBuffer(VkCommandBuffer buffer, uint32_t imageIndex)
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if(vkBeginCommandBuffer(buffer, &beginInfo) != VK_SUCCESS)
+        mLogger.error("Failed to begin recording command buffer!");
+
+    VkRenderPassBeginInfo renderBegin{};
+    renderBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderBegin.renderPass = mRenderPass;
+    renderBegin.framebuffer = mSwapchainFramebuffers[imageIndex];
+    renderBegin.renderArea.offset = {0,0};
+    renderBegin.renderArea.extent = mSwapchainExtent;
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    renderBegin.clearValueCount = 1;
+    renderBegin.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+
+    VkViewport viewport{};
+    viewport.height = mSwapchainExtent.height;
+    viewport.width = mSwapchainExtent.width;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    vkCmdSetViewport(buffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.extent = mSwapchainExtent;
+    scissor.offset = {0, 0};
+    vkCmdSetScissor(buffer, 0, 1, &scissor);
+
+    vkCmdDraw(buffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(buffer);
+
+    if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
+        mLogger.error("Failed to record command buffer!");
+}
 
 bool ke::Graphics::Renderer::checkValidationLayerSupport()
 {
