@@ -37,12 +37,26 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createCommandBuffer();
+    createSyncObjects();
 
     mLogger.info("Initialized renderer.");
 }
 
 void ke::Graphics::Renderer::terminate()
 {
+    vkDeviceWaitIdle(mDevice);
+
+
+    for(size_t i = 0; i < mSwapchainImages.size(); i++)
+        vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
+    for(int i = 0; i < MAXFRAMESINFLIGHT; i++)
+    {
+        vkDestroySemaphore(mDevice, mImageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(mDevice, mInFlightFences[i], nullptr);    
+    }
+    
+
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     for(auto framebuffer : mSwapchainFramebuffers)
         vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
@@ -56,6 +70,56 @@ void ke::Graphics::Renderer::terminate()
     vkDestroyDevice(mDevice, nullptr);
     DestroyDebugUtilsMessenger(mInstance, mDebugMessenger, nullptr);
     vkDestroyInstance(mInstance, nullptr);
+}
+
+void ke::Graphics::Renderer::draw()
+{
+    vkWaitForFences(mDevice, 1, &mInFlightFences[currentFrameInFlight], VK_TRUE, UINT64_MAX);
+
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[currentFrameInFlight], VK_NULL_HANDLE, &imageIndex);
+
+    if(mImagesInFlight[imageIndex] != VK_NULL_HANDLE)
+        vkWaitForFences(mDevice, 1, &mImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+
+    mImagesInFlight[imageIndex] = mInFlightFences[currentFrameInFlight];
+
+    vkResetFences(mDevice, 1, &mInFlightFences[currentFrameInFlight]);
+
+    vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);
+    recordCommandBuffer(mCommandBuffers[currentFrameInFlight], imageIndex);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {mImageAvailableSemaphores[currentFrameInFlight]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &mCommandBuffers[currentFrameInFlight];
+    
+    VkSemaphore signalSemaphores[] = {mRenderFinishedSemaphores[imageIndex]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if(vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[currentFrameInFlight]) != VK_SUCCESS)
+        mLogger.error("Failed to submit to graphics queue!");
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    
+    VkSwapchainKHR swapchains[] = {mSwapchain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapchains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    vkQueuePresentKHR(mPresentQueue, &presentInfo);
+
+    currentFrameInFlight = (currentFrameInFlight + 1) % MAXFRAMESINFLIGHT;
 }
 
 void ke::Graphics::Renderer::createVulkanInstance()
@@ -302,6 +366,8 @@ VkExtent2D ke::Graphics::Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesK
 
     actualExtent.width = std::clamp(actualExtent.width, cap.minImageExtent.width, cap.maxImageExtent.width);
     actualExtent.height = std::clamp(actualExtent.height, cap.minImageExtent.height, cap.maxImageExtent.height);
+
+    return actualExtent;
 }
 
 void ke::Graphics::Renderer::createSwapchain(GLFWwindow *window)
@@ -390,8 +456,8 @@ void ke::Graphics::Renderer::createSwapchainImageViews()
 
 void ke::Graphics::Renderer::createGraphicsPipeline()
 {
-    auto vertexCode = ke::util::readFile("shader/bin/vert.spv");
-    auto fragCode = ke::util::readFile("shader/bin/frag.spv");
+    auto vertexCode = ke::util::readFile("./shader/bin/vert.spv");
+    auto fragCode = ke::util::readFile("./shader/bin/frag.spv");
 
     VkShaderModule vertexModule = createShaderModule(vertexCode);
     VkShaderModule fragmentModule = createShaderModule(fragCode);
@@ -507,6 +573,7 @@ VkShaderModule ke::Graphics::Renderer::createShaderModule(const std::vector<char
     if(vkCreateShaderModule(mDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
         mLogger.error("Failed to create shader module!");
 
+    return shaderModule;
 }
 
 void ke::Graphics::Renderer::createRenderPass()
@@ -530,12 +597,23 @@ void ke::Graphics::Renderer::createRenderPass()
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
 
+    VkSubpassDependency dep{};
+    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass = 0;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.srcAccessMask = 0;
+    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+
     VkRenderPassCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     createInfo.attachmentCount = 1;
     createInfo.pAttachments = &colorAttachment;
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
+    createInfo.dependencyCount = 1;
+    createInfo.pDependencies = &dep;
 
     if(vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRenderPass) != VK_SUCCESS)
         mLogger.error("Failed to create render pass!");
@@ -579,13 +657,15 @@ void ke::Graphics::Renderer::createCommandPool()
 
 void ke::Graphics::Renderer::createCommandBuffer()
 {
+    mCommandBuffers.resize(MAXFRAMESINFLIGHT);
+
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandBufferCount = 1;
+    allocInfo.commandBufferCount = (uint32_t) mCommandBuffers.size();
     allocInfo.commandPool = mCommandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
-    if(vkAllocateCommandBuffers(mDevice, &allocInfo, &mCommandBuffer) != VK_SUCCESS)
+    if(vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
         mLogger.critical("Failed to allocate command buffers!");
 }
 
@@ -632,6 +712,33 @@ void ke::Graphics::Renderer::recordCommandBuffer(VkCommandBuffer buffer, uint32_
 
     if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
         mLogger.error("Failed to record command buffer!");
+}
+
+void ke::Graphics::Renderer::createSyncObjects()
+{
+    mImageAvailableSemaphores.resize(MAXFRAMESINFLIGHT);
+    mRenderFinishedSemaphores.resize(mSwapchainImages.size());
+    mInFlightFences.resize(MAXFRAMESINFLIGHT);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    for(int i = 0; i < MAXFRAMESINFLIGHT; i++)
+    {
+        if(vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mImageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFences[i]) != VK_SUCCESS)
+        mLogger.error("Failed to create at least one sync object!");
+    }
+    for(size_t i = 0; i < mSwapchainImages.size(); i++)
+    {
+        if(vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderFinishedSemaphores[i]) != VK_SUCCESS)
+            mLogger.error("Failed to create render finished semaphore!");
+    }
+    mImagesInFlight = std::vector<VkFence>(mSwapchainImages.size(), VK_NULL_HANDLE);
 }
 
 bool ke::Graphics::Renderer::checkValidationLayerSupport()

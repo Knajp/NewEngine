@@ -33,6 +33,8 @@ void ke::Core::Application::run()
 
     while (!mWindow->shouldClose())
     {
+        mRenderer.draw();
+        
         Graphics::Window::pollEvents();
     }
     

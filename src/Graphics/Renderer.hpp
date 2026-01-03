@@ -26,6 +26,8 @@ namespace ke
             
             void init(GLFWwindow* window);
             void terminate();
+
+            void draw();
         private:
             Renderer() = default;
 
@@ -52,6 +54,7 @@ namespace ke
             void createCommandPool();
             void createCommandBuffer();
             void recordCommandBuffer(VkCommandBuffer buffer, uint32_t imageIndex);    
+            void createSyncObjects();
 
             //DEBUG
             bool checkValidationLayerSupport();
@@ -82,12 +85,20 @@ namespace ke
             VkRenderPass mRenderPass;
 
             VkCommandPool mCommandPool;
-            VkCommandBuffer mCommandBuffer;
+            std::vector<VkCommandBuffer> mCommandBuffers;
 
             std::vector<VkFramebuffer> mSwapchainFramebuffers;
 
+            std::vector<VkSemaphore> mImageAvailableSemaphores;
+            std::vector<VkSemaphore> mRenderFinishedSemaphores;
+            std::vector<VkFence> mInFlightFences;
+            std::vector<VkFence> mImagesInFlight;
+
             //DEBUG
             VkDebugUtilsMessengerEXT mDebugMessenger;
+
+            const int MAXFRAMESINFLIGHT = 2;
+            uint32_t currentFrameInFlight = 0;
         };
     }
 }
