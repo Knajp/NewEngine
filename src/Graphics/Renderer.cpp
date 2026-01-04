@@ -56,28 +56,35 @@ void ke::Graphics::Renderer::terminate()
         vkDestroyFence(mDevice, mInFlightFences[i], nullptr);    
     }
     
+    cleanupSwapchain();
 
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
-    for(auto framebuffer : mSwapchainFramebuffers)
-        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-    for(auto imageView : mSwapchainImageViews)
-        vkDestroyImageView(mDevice, imageView, nullptr);
-    vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     DestroyDebugUtilsMessenger(mInstance, mDebugMessenger, nullptr);
     vkDestroyInstance(mInstance, nullptr);
 }
 
-void ke::Graphics::Renderer::draw()
+void ke::Graphics::Renderer::draw(GLFWwindow* window)
 {
     vkWaitForFences(mDevice, 1, &mInFlightFences[currentFrameInFlight], VK_TRUE, UINT64_MAX);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[currentFrameInFlight], VK_NULL_HANDLE, &imageIndex);
+    VkResult status = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[currentFrameInFlight], VK_NULL_HANDLE, &imageIndex);
+
+    if(status == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        recreateSwapchain(window);
+
+        currentFrameInFlight = (currentFrameInFlight + 1) % MAXFRAMESINFLIGHT;
+
+        return;
+    }
+    else if(status != VK_SUCCESS && status != VK_SUBOPTIMAL_KHR)
+        mLogger.error("Failed to acquire swapchain image!");
 
     if(mImagesInFlight[imageIndex] != VK_NULL_HANDLE)
         vkWaitForFences(mDevice, 1, &mImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
@@ -117,9 +124,19 @@ void ke::Graphics::Renderer::draw()
     presentInfo.pSwapchains = swapchains;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(mPresentQueue, &presentInfo);
+    VkResult result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
 
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
+    {
+        recreateSwapchain(window);
+        framebufferResized = false;
+    }
     currentFrameInFlight = (currentFrameInFlight + 1) % MAXFRAMESINFLIGHT;
+}
+
+void ke::Graphics::Renderer::signalWindowResize()
+{
+    framebufferResized = true;
 }
 
 void ke::Graphics::Renderer::createVulkanInstance()
@@ -374,7 +391,6 @@ void ke::Graphics::Renderer::createSwapchain(GLFWwindow *window)
 {
     util::SwapchainSupportDetails support = querySwapchainSupport(mPhysicalDevice);
 
-    mLogger.info(std::to_string(support.surfaceFormats.size()).c_str());
     VkSurfaceFormatKHR surfaceFormat = chooseSwapchainSurfaceFormat(support.surfaceFormats);
     VkPresentModeKHR presentMode = chooseSwapchainPresentMode(support.presentModes);
     VkExtent2D extent = chooseSwapExtent(support.surfaceCapabilities, window);
@@ -452,6 +468,35 @@ void ke::Graphics::Renderer::createSwapchainImageViews()
         if(vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS)
             mLogger.error("Failed to create an image view!");
     }
+}
+
+void ke::Graphics::Renderer::recreateSwapchain(GLFWwindow* window)
+{
+    vkDeviceWaitIdle(mDevice);
+    int width, height;
+    do
+    {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    } while (width == 0 || height == 0); 
+    
+
+    cleanupSwapchain();
+
+    createSwapchain(window);
+    createSwapchainImageViews();
+    createFramebuffers();
+}
+
+void ke::Graphics::Renderer::cleanupSwapchain()
+{
+    for(auto fb : mSwapchainFramebuffers)
+        vkDestroyFramebuffer(mDevice, fb, nullptr);
+    
+    for(auto view : mSwapchainImageViews)
+        vkDestroyImageView(mDevice, view, nullptr);
+    
+    vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 }
 
 void ke::Graphics::Renderer::createGraphicsPipeline()
@@ -706,7 +751,7 @@ void ke::Graphics::Renderer::recordCommandBuffer(VkCommandBuffer buffer, uint32_
     scissor.offset = {0, 0};
     vkCmdSetScissor(buffer, 0, 1, &scissor);
 
-    vkCmdDraw(buffer, 3, 1, 0, 0);
+    vkCmdDraw(buffer, 6, 1, 0, 0);
 
     vkCmdEndRenderPass(buffer);
 

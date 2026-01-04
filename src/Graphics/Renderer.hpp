@@ -27,7 +27,9 @@ namespace ke
             void init(GLFWwindow* window);
             void terminate();
 
-            void draw();
+            void draw(GLFWwindow* window);
+
+            void signalWindowResize();
         private:
             Renderer() = default;
 
@@ -45,6 +47,8 @@ namespace ke
             VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& cap, GLFWwindow* window);
             void createSwapchain(GLFWwindow* window);
             void createSwapchainImageViews();
+            void recreateSwapchain(GLFWwindow* window);
+            void cleanupSwapchain();
 
             void createGraphicsPipeline();
             VkShaderModule createShaderModule(const std::vector<char>& code);
@@ -99,6 +103,7 @@ namespace ke
 
             const int MAXFRAMESINFLIGHT = 2;
             uint32_t currentFrameInFlight = 0;
+            bool framebufferResized = false;
         };
     }
 }

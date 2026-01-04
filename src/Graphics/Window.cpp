@@ -1,8 +1,15 @@
 #include "Window.hpp"
+#include "Renderer.hpp"
+
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
+{
+	ke::Graphics::Renderer::getInstance().signalWindowResize();
+}
 
 ke::Graphics::Window::Window(uint16_t width, uint16_t height, const char* title)
 {
 	pWindow = glfwCreateWindow(width, height, title, nullptr, nullptr);
+	glfwSetFramebufferSizeCallback(pWindow, framebufferResizeCallback);
 }
 
 ke::Graphics::Window::~Window()
