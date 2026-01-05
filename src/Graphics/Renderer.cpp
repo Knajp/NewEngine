@@ -1,6 +1,8 @@
 #include "Renderer.hpp"
 #include <iostream>
 #include <set>
+#include "../Utility/structs.hpp"
+
 const std::vector<const char*> gValidationLayers = 
 {"VK_LAYER_KHRONOS_validation"};
 
@@ -68,12 +70,11 @@ void ke::Graphics::Renderer::terminate()
     vkDestroyInstance(mInstance, nullptr);
 }
 
-void ke::Graphics::Renderer::draw(GLFWwindow* window)
+void ke::Graphics::Renderer::readyCanvas(GLFWwindow *window)
 {
     vkWaitForFences(mDevice, 1, &mInFlightFences[currentFrameInFlight], VK_TRUE, UINT64_MAX);
 
-    uint32_t imageIndex;
-    VkResult status = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[currentFrameInFlight], VK_NULL_HANDLE, &imageIndex);
+    VkResult status = vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, mImageAvailableSemaphores[currentFrameInFlight], VK_NULL_HANDLE, &currentImageIndex);
 
     if(status == VK_ERROR_OUT_OF_DATE_KHR)
     {
@@ -86,15 +87,21 @@ void ke::Graphics::Renderer::draw(GLFWwindow* window)
     else if(status != VK_SUCCESS && status != VK_SUBOPTIMAL_KHR)
         mLogger.error("Failed to acquire swapchain image!");
 
-    if(mImagesInFlight[imageIndex] != VK_NULL_HANDLE)
-        vkWaitForFences(mDevice, 1, &mImagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+    if(mImagesInFlight[currentImageIndex] != VK_NULL_HANDLE)
+        vkWaitForFences(mDevice, 1, &mImagesInFlight[currentImageIndex], VK_TRUE, UINT64_MAX);
 
-    mImagesInFlight[imageIndex] = mInFlightFences[currentFrameInFlight];
+    mImagesInFlight[currentImageIndex] = mInFlightFences[currentFrameInFlight];
 
     vkResetFences(mDevice, 1, &mInFlightFences[currentFrameInFlight]);
 
     vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);
-    recordCommandBuffer(mCommandBuffers[currentFrameInFlight], imageIndex);
+
+    beginRecording(mCommandBuffers[currentFrameInFlight]);
+}
+
+void ke::Graphics::Renderer::finishDraw(GLFWwindow *window)
+{
+    endRecording(mCommandBuffers[currentFrameInFlight]);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -107,7 +114,7 @@ void ke::Graphics::Renderer::draw(GLFWwindow* window)
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &mCommandBuffers[currentFrameInFlight];
     
-    VkSemaphore signalSemaphores[] = {mRenderFinishedSemaphores[imageIndex]};
+    VkSemaphore signalSemaphores[] = {mRenderFinishedSemaphores[currentImageIndex]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -122,7 +129,7 @@ void ke::Graphics::Renderer::draw(GLFWwindow* window)
     VkSwapchainKHR swapchains[] = {mSwapchain};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapchains;
-    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pImageIndices = &currentImageIndex;
 
     VkResult result = vkQueuePresentKHR(mPresentQueue, &presentInfo);
 
@@ -528,10 +535,15 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates  = dynamicStates.data();
 
+    VkVertexInputBindingDescription binding = util::str::Vertex2P3C::getInputBindingDescription();
+    std::array<VkVertexInputAttributeDescription, 2> attributes = util::str::Vertex2P3C::getInputAttributeDescriptions();
+
     VkPipelineVertexInputStateCreateInfo vertexInput{};
     vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInput.vertexAttributeDescriptionCount = 0;
-    vertexInput.vertexBindingDescriptionCount = 0;
+    vertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributes.size());
+    vertexInput.vertexBindingDescriptionCount = 1;
+    vertexInput.pVertexAttributeDescriptions = attributes.data();
+    vertexInput.pVertexBindingDescriptions = &binding;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -714,51 +726,6 @@ void ke::Graphics::Renderer::createCommandBuffer()
         mLogger.critical("Failed to allocate command buffers!");
 }
 
-void ke::Graphics::Renderer::recordCommandBuffer(VkCommandBuffer buffer, uint32_t imageIndex)
-{
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-    if(vkBeginCommandBuffer(buffer, &beginInfo) != VK_SUCCESS)
-        mLogger.error("Failed to begin recording command buffer!");
-
-    VkRenderPassBeginInfo renderBegin{};
-    renderBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderBegin.renderPass = mRenderPass;
-    renderBegin.framebuffer = mSwapchainFramebuffers[imageIndex];
-    renderBegin.renderArea.offset = {0,0};
-    renderBegin.renderArea.extent = mSwapchainExtent;
-
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderBegin.clearValueCount = 1;
-    renderBegin.pClearValues = &clearColor;
-
-    vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
-
-    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
-
-    VkViewport viewport{};
-    viewport.height = mSwapchainExtent.height;
-    viewport.width = mSwapchainExtent.width;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    vkCmdSetViewport(buffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.extent = mSwapchainExtent;
-    scissor.offset = {0, 0};
-    vkCmdSetScissor(buffer, 0, 1, &scissor);
-
-    vkCmdDraw(buffer, 6, 1, 0, 0);
-
-    vkCmdEndRenderPass(buffer);
-
-    if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
-        mLogger.error("Failed to record command buffer!");
-}
-
 void ke::Graphics::Renderer::createSyncObjects()
 {
     mImageAvailableSemaphores.resize(MAXFRAMESINFLIGHT);
@@ -784,6 +751,52 @@ void ke::Graphics::Renderer::createSyncObjects()
             mLogger.error("Failed to create render finished semaphore!");
     }
     mImagesInFlight = std::vector<VkFence>(mSwapchainImages.size(), VK_NULL_HANDLE);
+}
+
+void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    if(vkBeginCommandBuffer(buffer, &beginInfo) != VK_SUCCESS)
+        mLogger.error("Failed to begin recording command buffer!");
+
+    VkRenderPassBeginInfo renderBegin{};
+    renderBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderBegin.renderPass = mRenderPass;
+    renderBegin.framebuffer = mSwapchainFramebuffers[currentImageIndex];
+    renderBegin.renderArea.offset = {0,0};
+    renderBegin.renderArea.extent = mSwapchainExtent;
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    renderBegin.clearValueCount = 1;
+    renderBegin.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+
+    VkViewport viewport{};
+    viewport.height = mSwapchainExtent.height;
+    viewport.width = mSwapchainExtent.width;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    vkCmdSetViewport(buffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.extent = mSwapchainExtent;
+    scissor.offset = {0, 0};
+    vkCmdSetScissor(buffer, 0, 1, &scissor);
+}
+
+void ke::Graphics::Renderer::endRecording(VkCommandBuffer buffer)
+{
+    vkCmdEndRenderPass(buffer);
+
+    if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
+        mLogger.error("Failed to record command buffer!");
 }
 
 bool ke::Graphics::Renderer::checkValidationLayerSupport()

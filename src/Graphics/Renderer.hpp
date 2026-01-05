@@ -27,7 +27,8 @@ namespace ke
             void init(GLFWwindow* window);
             void terminate();
 
-            void draw(GLFWwindow* window);
+            void readyCanvas(GLFWwindow* window);
+            void finishDraw(GLFWwindow* window);
 
             void signalWindowResize();
         private:
@@ -57,8 +58,10 @@ namespace ke
             void createFramebuffers();
             void createCommandPool();
             void createCommandBuffer();
-            void recordCommandBuffer(VkCommandBuffer buffer, uint32_t imageIndex);    
             void createSyncObjects();
+
+            void beginRecording(VkCommandBuffer buffer);
+            void endRecording(VkCommandBuffer buffer);
 
             //DEBUG
             bool checkValidationLayerSupport();
@@ -103,6 +106,7 @@ namespace ke
 
             const int MAXFRAMESINFLIGHT = 2;
             uint32_t currentFrameInFlight = 0;
+            uint32_t currentImageIndex = 0;
             bool framebufferResized = false;
         };
     }

@@ -33,8 +33,10 @@ void ke::Core::Application::run()
 
     while (!mWindow->shouldClose())
     {
-        mRenderer.draw(mWindow->getWindowHandle());
-        
+        mRenderer.readyCanvas(mWindow->getWindowHandle());
+
+
+        mRenderer.finishDraw(mWindow->getWindowHandle());
         Graphics::Window::pollEvents();
     }
     
