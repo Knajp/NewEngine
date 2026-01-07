@@ -168,6 +168,8 @@ void ke::Graphics::Renderer::signalWindowResize()
 
 void ke::Graphics::Renderer::createVulkanInstance()
 {
+    if(enableValidationLayers)
+        mLogger.info("Requested validation layers.");
     if(enableValidationLayers && !checkValidationLayerSupport())
         mLogger.critical("Failed to supply requested validation layers!");
     
@@ -190,6 +192,7 @@ void ke::Graphics::Renderer::createVulkanInstance()
     else
     {
         createInfo.enabledLayerCount = 0;
+        mLogger.info("No layers were enabled.");
     }
     
     auto extensions = getRequiredExtensions();
@@ -198,6 +201,7 @@ void ke::Graphics::Renderer::createVulkanInstance()
 
     if(vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS)
         mLogger.critical("Failed to create a Vulkan instance!");
+    mLogger.info("Created Vulkan Instance.");
 }
 
 void ke::Graphics::Renderer::pickPhysicalDevice()
@@ -209,6 +213,8 @@ void ke::Graphics::Renderer::pickPhysicalDevice()
         mLogger.critical("Failed to find a Graphics Processing Unit with Vulkan support");
         return;
     }
+    mLogger.info("Vulkan support found on at least one GPU.");
+
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
 
@@ -220,9 +226,14 @@ void ke::Graphics::Renderer::pickPhysicalDevice()
     
 
     if(candidates.rbegin()->first > 0)
+    {
         mPhysicalDevice = candidates.rbegin()->second;
+        mLogger.info("Suitable GPU was found");
+    }
     else
         mLogger.critical("Failed to find a suitable GPU!");
+    
+    
 }
 
 int ke::Graphics::Renderer::ratePhysicalDeviceSuitability(VkPhysicalDevice device)
@@ -290,12 +301,16 @@ void ke::Graphics::Renderer::createLogicalDevice()
     vkGetDeviceQueue(mDevice, indices.graphicsFamily.value(), 0, &mGraphicsQueue);
     vkGetDeviceQueue(mDevice, indices.presentFamily.value(), 0, &mPresentQueue);
     vkGetDeviceQueue(mDevice, indices.transferFamily.value(), 0, &mTransferQueue);
+
+    mLogger.info("Created a logical device");
 }
 
 void ke::Graphics::Renderer::createWindowSurface(GLFWwindow* window)
 {
     if(glfwCreateWindowSurface(mInstance, window, nullptr, &mSurface) != VK_SUCCESS)
         mLogger.error("Failed to create a window surface!");
+    
+    mLogger.info("Created a window surface.");
 }
 
 bool ke::Graphics::Renderer::checkDeviceExtensionSupport(VkPhysicalDevice device)
@@ -471,6 +486,7 @@ void ke::Graphics::Renderer::createSwapchain(GLFWwindow *window)
     mSwapchainExtent = extent;
     mSwapchainFormat = surfaceFormat.format;
     
+    mLogger.info("Created Swapchain");
 }
 
 void ke::Graphics::Renderer::createSwapchainImageViews()
@@ -499,6 +515,8 @@ void ke::Graphics::Renderer::createSwapchainImageViews()
         if(vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS)
             mLogger.error("Failed to create an image view!");
     }
+
+    mLogger.info("Created swapchain image views");
 }
 
 void ke::Graphics::Renderer::recreateSwapchain(GLFWwindow* window)
@@ -641,6 +659,8 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
 
     vkDestroyShaderModule(mDevice, vertexModule, nullptr);
     vkDestroyShaderModule(mDevice, fragmentModule, nullptr);
+
+    mLogger.info("Created graphics pipeline!");
 }
 
 VkShaderModule ke::Graphics::Renderer::createShaderModule(const std::vector<char> &code)
@@ -699,6 +719,7 @@ void ke::Graphics::Renderer::createRenderPass()
     if(vkCreateRenderPass(mDevice, &createInfo, nullptr, &mRenderPass) != VK_SUCCESS)
         mLogger.error("Failed to create render pass!");
 
+    mLogger.info("Created render pass.");
 }
 
 void ke::Graphics::Renderer::createFramebuffers()
@@ -720,7 +741,9 @@ void ke::Graphics::Renderer::createFramebuffers()
 
         if(vkCreateFramebuffer(mDevice, &createInfo, nullptr, &mSwapchainFramebuffers[i]) != VK_SUCCESS)
             mLogger.error("Failed to create framebuffer!");
+        mLogger.info("Created framebuffer.");
     }
+
 }
 
 void ke::Graphics::Renderer::createCommandPool()
@@ -734,6 +757,7 @@ void ke::Graphics::Renderer::createCommandPool()
 
     if(vkCreateCommandPool(mDevice, &createInfo, nullptr, &mCommandPool) != VK_SUCCESS)
         mLogger.critical("Failed to create a command pool!");
+    mLogger.info("Created command pool.");
 }
 
 void ke::Graphics::Renderer::createCommandBuffer()
@@ -748,6 +772,8 @@ void ke::Graphics::Renderer::createCommandBuffer()
 
     if(vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
         mLogger.critical("Failed to allocate command buffers!");
+    
+    mLogger.info("Created command buffers.");
 }
 
 void ke::Graphics::Renderer::createSyncObjects()
@@ -775,6 +801,8 @@ void ke::Graphics::Renderer::createSyncObjects()
             mLogger.error("Failed to create render finished semaphore!");
     }
     mImagesInFlight = std::vector<VkFence>(mSwapchainImages.size(), VK_NULL_HANDLE);
+
+    mLogger.info("Created sync objects.");
 }
 
 void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
@@ -842,6 +870,7 @@ void ke::Graphics::Renderer::createVertexBuffer()
 
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
     vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+
 }
 
 void ke::Graphics::Renderer::createIndexBuffer()
@@ -995,6 +1024,7 @@ void ke::Graphics::Renderer::setupDebugMessenger()
 
     if(CreateDebugUtilsMessenger(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
         mLogger.error("Failed to set up debug utils messenger!");
+    mLogger.info("Setup debug utils messenger.");
 }
 
 void ke::Graphics::Renderer::DestroyDebugUtilsMessenger(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks *pAllocator)

@@ -20,6 +20,8 @@ namespace ke
 
 			util::Logger mLogger = util::Logger("Main Application Logger");
 
+			GLFWmonitor* mMonitor = nullptr;
+
 			void init();
 			void run();
 			void terminate();

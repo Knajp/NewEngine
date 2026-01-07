@@ -17,7 +17,9 @@ void ke::Core::Application::init()
 {
     Graphics::Window::initGLFW();
     mLogger.info("Initialized GLFW.");
-    mWindow = std::make_unique<Graphics::Window>(800, 800, "Hello, World!");
+    mMonitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* videoMode = glfwGetVideoMode(mMonitor);
+    mWindow = std::make_unique<Graphics::Window>(videoMode->width, videoMode->height, "Knajp's Engine");
     mLogger.info("Created window.");
 
     mLogger.trace("Requesting renderer init.");
