@@ -69,6 +69,7 @@ void ke::Graphics::Renderer::terminate()
 
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
+    
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);

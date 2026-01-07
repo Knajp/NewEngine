@@ -14,30 +14,42 @@ void ke::util::Logger::initLoggers()
 
 void ke::util::Logger::trace(const char *msg) const
 {
+#ifdef DEBUG
     mLogger->trace(msg);
+#endif
 }
 
 void ke::util::Logger::debug(const char *msg) const
 {
+#ifdef DEBUG
     mLogger->debug(msg);
+#endif
 }
 
 void ke::util::Logger::info(const char *msg) const
 {
+#ifdef DEBUG
     mLogger->info(msg);
+#endif
 }
 
 void ke::util::Logger::warn(const char *msg) const
 {
+#ifdef DEBUG
     mLogger->warn(msg);
+#endif
 }
 
 void ke::util::Logger::error(const char *msg) const
 {
+#ifdef DEBUG
     mLogger->error(msg);
+#endif
 }
 
 void ke::util::Logger::critical(const char *msg) const
 {
+#ifdef DEBUG
     mLogger->critical(msg);
+#endif
 }

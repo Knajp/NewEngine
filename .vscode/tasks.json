@@ -1,0 +1,18 @@
+{
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "buildDebug",
+            "args": [],
+            "command": "make config='debug_x64'",
+            "group": "build"
+        },
+        {
+            "type": "cppbuild",
+            "label": "buildRelease",
+            "args": [],
+            "command": "make config='release_x64'"
+        }
+    ],
+    "version": "2.0.0"
+}

@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "buildDebug",
+            "program": "${workspaceRoot}/bin/Debug/NewEngine",
+            "cwd": "${workspaceFolder}",
+            "externalConsole": true,
+            "args": []
+        },
+        {
+            "name": "Release",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "buildRelease",
+            "program": "${workspaceRoot}/bin/Release/NewEngine",
+            "cwd": "${workspaceFolder}",
+            "externalConsole": false,
+            "args": []
+        }
+    ]
+}

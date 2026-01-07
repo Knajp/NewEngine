@@ -2,6 +2,5 @@ Makefile
 NewEngine.make
 bin/
 obj/
-.vscode/
 
 !vendor/bin/
