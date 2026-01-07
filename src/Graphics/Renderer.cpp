@@ -1,7 +1,7 @@
 #include "Renderer.hpp"
 #include <iostream>
 #include <set>
-#include "../Utility/structs.hpp"
+
 
 const std::vector<const char*> gValidationLayers = 
 {"VK_LAYER_KHRONOS_validation"};
@@ -39,6 +39,8 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffer();
     createSyncObjects();
 
@@ -49,6 +51,11 @@ void ke::Graphics::Renderer::terminate()
 {
     vkDeviceWaitIdle(mDevice);
 
+    vkDestroyBuffer(mDevice, indexBuffer, nullptr);
+    vkFreeMemory(mDevice, indexBufferMemory, nullptr);
+
+    vkDestroyBuffer(mDevice, vertexBuffer, nullptr);
+    vkFreeMemory(mDevice, vertexBufferMemory, nullptr);
 
     for(size_t i = 0; i < mSwapchainImages.size(); i++)
         vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
@@ -97,6 +104,18 @@ void ke::Graphics::Renderer::readyCanvas(GLFWwindow *window)
     vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);
 
     beginRecording(mCommandBuffers[currentFrameInFlight]);
+}
+
+void ke::Graphics::Renderer::drawDemo()
+{
+
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(mCommandBuffers[currentFrameInFlight], 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(mCommandBuffers[currentFrameInFlight], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdDrawIndexed(mCommandBuffers[currentFrameInFlight], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 
 void ke::Graphics::Renderer::finishDraw(GLFWwindow *window)
@@ -233,7 +252,7 @@ void ke::Graphics::Renderer::createLogicalDevice()
     util::QueueFamilyIndices indices = findQueueFamilyIndices(mPhysicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
-    std::set<uint32_t> uniqueQueueIndices = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+    std::set<uint32_t> uniqueQueueIndices = {indices.graphicsFamily.value(), indices.presentFamily.value(), indices.transferFamily.value()};
 
     for(auto index : uniqueQueueIndices)
     {
@@ -269,6 +288,7 @@ void ke::Graphics::Renderer::createLogicalDevice()
 
     vkGetDeviceQueue(mDevice, indices.graphicsFamily.value(), 0, &mGraphicsQueue);
     vkGetDeviceQueue(mDevice, indices.presentFamily.value(), 0, &mPresentQueue);
+    vkGetDeviceQueue(mDevice, indices.transferFamily.value(), 0, &mTransferQueue);
 }
 
 void ke::Graphics::Renderer::createWindowSurface(GLFWwindow* window)
@@ -309,6 +329,9 @@ ke::util::QueueFamilyIndices ke::Graphics::Renderer::findQueueFamilyIndices(VkPh
         if(prop.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             indices.graphicsFamily = i;
 
+        if(prop.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            indices.transferFamily = i;
+         
         VkBool32 presentSupport = VK_FALSE;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSupport);
 
@@ -797,6 +820,138 @@ void ke::Graphics::Renderer::endRecording(VkCommandBuffer buffer)
 
     if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
         mLogger.error("Failed to record command buffer!");
+}
+
+void ke::Graphics::Renderer::createVertexBuffer()
+{
+    VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+    
+    void* data;
+    vkMapMemory(mDevice, stagingBufferMemory, 0, size, 0, &data);
+        memcpy(data, vertices.data(), (size_t) size);
+    vkUnmapMemory(mDevice, stagingBufferMemory);
+
+    createBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+    
+    copyBuffer(stagingBuffer, vertexBuffer, size);
+
+    vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+    vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+}
+
+void ke::Graphics::Renderer::createIndexBuffer()
+{
+    VkDeviceSize size = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(mDevice, stagingBufferMemory, 0, size, 0, &data);
+        memcpy(data, indices.data(), (size_t) size);
+    vkUnmapMemory(mDevice, stagingBufferMemory);
+
+    createBuffer(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+    copyBuffer(stagingBuffer, indexBuffer, size);
+
+    vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+    vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+}
+
+uint32_t ke::Graphics::Renderer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProp;
+    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProp);
+
+    for(uint32_t i = 0; i < memProp.memoryTypeCount; i++)
+    {
+        if((typeFilter & (1 << i)) && (memProp.memoryTypes[i].propertyFlags & properties) == properties)
+            return i;
+    }
+
+    mLogger.error("Failed to find suitable memory type!");
+    return -1;
+}
+
+void ke::Graphics::Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer, VkDeviceMemory &bufferMemory)
+{
+    auto queueFamilyIndices = findQueueFamilyIndices(mPhysicalDevice);
+
+    std::set<uint32_t> uniqueIndices = {queueFamilyIndices.graphicsFamily.value(), queueFamilyIndices.transferFamily.value()};
+
+    std::vector<uint32_t> indices(uniqueIndices.begin(), uniqueIndices.end());
+
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    if(uniqueIndices.size() != 1)
+    {
+        bufferInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        bufferInfo.queueFamilyIndexCount = static_cast<uint32_t>(indices.size());
+        bufferInfo.pQueueFamilyIndices = indices.data();
+    }
+    else bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if(vkCreateBuffer(mDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+        mLogger.error("Failed to create buffer!");
+
+    VkMemoryRequirements memReq;
+    vkGetBufferMemoryRequirements(mDevice, buffer, &memReq);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, properties);
+    allocInfo.allocationSize = size;
+
+    if(vkAllocateMemory(mDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+        mLogger.error("Failed to allocate buffer memory!");
+    
+    vkBindBufferMemory(mDevice, buffer, bufferMemory, 0);
+
+
+}
+
+void ke::Graphics::Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    // Maybe separate cpool?
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = mCommandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(mDevice, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    
+    VkBufferCopy copyRegion{};
+    copyRegion.size = size;
+
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(mTransferQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(mTransferQueue);
+
+    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
 }
 
 bool ke::Graphics::Renderer::checkValidationLayerSupport()

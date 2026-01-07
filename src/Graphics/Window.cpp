@@ -23,7 +23,7 @@ void ke::Graphics::Window::initGLFW()
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 }
-
+ 
 void ke::Graphics::Window::exitGLFW()
 {
 	glfwTerminate();

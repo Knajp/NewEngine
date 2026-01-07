@@ -14,6 +14,7 @@
 
 #include "../Utility/Logger.hpp"
 #include "../Utility/RenderUtil.hpp"
+#include "../Utility/structs.hpp"
 
 namespace ke
 {
@@ -28,6 +29,7 @@ namespace ke
             void terminate();
 
             void readyCanvas(GLFWwindow* window);
+            void drawDemo();
             void finishDraw(GLFWwindow* window);
 
             void signalWindowResize();
@@ -63,6 +65,13 @@ namespace ke
             void beginRecording(VkCommandBuffer buffer);
             void endRecording(VkCommandBuffer buffer);
 
+            void createVertexBuffer();
+            void createIndexBuffer();
+            uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+            void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory );
+            void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+            
             //DEBUG
             bool checkValidationLayerSupport();
             void setupDebugMessenger();
@@ -79,7 +88,8 @@ namespace ke
 
             VkQueue mGraphicsQueue;
             VkQueue mPresentQueue;
-
+            VkQueue mTransferQueue;
+            
             VkSurfaceKHR mSurface;
             VkSwapchainKHR mSwapchain;  
             std::vector<VkImage> mSwapchainImages;
@@ -108,6 +118,25 @@ namespace ke
             uint32_t currentFrameInFlight = 0;
             uint32_t currentImageIndex = 0;
             bool framebufferResized = false;
+
+            VkBuffer vertexBuffer;
+            VkDeviceMemory vertexBufferMemory;
+
+            VkBuffer indexBuffer;
+            VkDeviceMemory indexBufferMemory;
+        };
+
+        const std::vector<util::str::Vertex2P3C> vertices = {
+            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+            {{-0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+            {{ 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+            {{ 0.5f, -0.5f}, {1.0f, 1.0f, 0.0f}}
+        };
+
+        const std::vector<uint16_t> indices =
+        {
+            0, 3, 2,
+            2, 1, 0
         };
     }
 }

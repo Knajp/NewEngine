@@ -35,6 +35,7 @@ void ke::Core::Application::run()
     {
         mRenderer.readyCanvas(mWindow->getWindowHandle());
 
+        mRenderer.drawDemo();
 
         mRenderer.finishDraw(mWindow->getWindowHandle());
         Graphics::Window::pollEvents();
