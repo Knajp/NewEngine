@@ -35,8 +35,10 @@ void ke::Core::Application::run()
 
     while (!mWindow->shouldClose())
     {
+        mWindow->calculateAspectRatio();
         mRenderer.readyCanvas(mWindow->getWindowHandle());
 
+        mRenderer.updateDemoUniforms(mWindow->getAspectRatio());
         mRenderer.drawDemo();
 
         mRenderer.finishDraw(mWindow->getWindowHandle());

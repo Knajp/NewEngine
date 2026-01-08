@@ -29,6 +29,7 @@ namespace ke
             void terminate();
 
             void readyCanvas(GLFWwindow* window);
+            void updateDemoUniforms(float aspectRatio);
             void drawDemo();
             void finishDraw(GLFWwindow* window);
 
@@ -72,6 +73,11 @@ namespace ke
             void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory );
             void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
             
+            void createDescriptorSetLayout();
+            void createUniformBuffers();
+            void createDescriptorPool();
+            void createDescriptorSets();
+
             //DEBUG
             bool checkValidationLayerSupport();
             void setupDebugMessenger();
@@ -111,6 +117,14 @@ namespace ke
             std::vector<VkFence> mInFlightFences;
             std::vector<VkFence> mImagesInFlight;
 
+            VkDescriptorSetLayout mDescriptorSetLayout;
+
+            std::vector<VkBuffer> uniformBuffers;
+            std::vector<VkDeviceMemory> uniformBuffersMemory;
+            std::vector<void*> uniformBuffersMapped;
+
+            VkDescriptorPool mDescriptorPool;
+            std::vector<VkDescriptorSet> mDescriptorSets;
             //DEBUG
             VkDebugUtilsMessengerEXT mDebugMessenger;
 

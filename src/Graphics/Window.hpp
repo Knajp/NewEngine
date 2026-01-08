@@ -22,8 +22,12 @@ namespace ke
 
 			bool shouldClose() const;
 
+			float getAspectRatio() const;
+			void calculateAspectRatio();
 		private:
 			GLFWwindow* pWindow;
+
+			float aspectRatio;
 		};
 	}
 }

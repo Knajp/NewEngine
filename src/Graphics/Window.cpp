@@ -43,3 +43,16 @@ bool ke::Graphics::Window::shouldClose() const
 {
 	return glfwWindowShouldClose(pWindow);
 }
+
+float ke::Graphics::Window::getAspectRatio() const
+{
+    return aspectRatio;
+}
+
+void ke::Graphics::Window::calculateAspectRatio()
+{
+	int width, height;
+	glfwGetFramebufferSize(pWindow, &width, &height);
+
+	aspectRatio = (float) width / (float) height;
+}
