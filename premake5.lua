@@ -20,6 +20,7 @@ workspace "NewEngine"
         links {
         "glfw3",
         "vulkan",
+        "pugixml",
         "dl",
         "pthread",
         "X11",

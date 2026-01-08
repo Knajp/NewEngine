@@ -58,6 +58,8 @@ void ke::Graphics::Renderer::terminate()
 {
     vkDeviceWaitIdle(mDevice);
 
+    vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
+
     for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
     {
         vkDestroyBuffer(mDevice, uniformBuffers[i], nullptr);
