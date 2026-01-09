@@ -1,5 +1,6 @@
 #include "Graphics/Window.hpp"
 #include "Graphics/Renderer.hpp"
+#include "InterfaceManager.hpp"
 #include <memory>
 
 namespace ke
@@ -17,7 +18,8 @@ namespace ke
 
 			std::unique_ptr<Graphics::Window> mWindow;
 			Graphics::Renderer& mRenderer = Graphics::Renderer::getInstance();
-
+			gui::UImanager& mUIManager = gui::UImanager::getInstance();
+			
 			util::Logger mLogger = util::Logger("Main Application Logger");
 
 			GLFWmonitor* mMonitor = nullptr;

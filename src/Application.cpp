@@ -26,6 +26,10 @@ void ke::Core::Application::init()
     mRenderer.init(mWindow->getWindowHandle());
     mLogger.trace("Finished initializing renderer.");
 
+    mLogger.trace("Requesting UI manager load");
+    mUIManager.loadComponents();
+    mLogger.info("Finished loading UI manager.");
+
     mLogger.info("Finished application initialization.");
 }
 
