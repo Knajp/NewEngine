@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <KEUIcomponent name="example">
-    <Frame x="10%" y="10%" w="80%" h="80%" color="#aaaaaa">
+    <Frame x="10" y="10" w="80" h="80" color="#aaaaaa">
 
     </Frame>
 </KEUIcomponent>

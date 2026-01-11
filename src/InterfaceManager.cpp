@@ -5,13 +5,15 @@ ke::gui::Component::Component(std::string filepath)
     static util::XML parser = util::XML::getInstance();
 
     parser.parseFile(filepath, mFrames);
-
+    
+    
     gui::Frame frame = std::get<gui::Frame>(mFrames[0]);
 
     std::cout << "First element x: " << frame.x;
     std::cout << "\nFirst element y:" << frame.y;
     std::cout << "\nFirst element w:" << frame.w;
     std::cout << "\nFirst element h" << frame.h;
+    
 }
 
 void ke::gui::UImanager::loadComponents()

@@ -1,7 +1,5 @@
 #include "XMLparser.hpp"
 
-
-
 void ke::util::XML::parseFile(std::string filepath, std::vector<GUIObject>& elements)
 {
     pugi::xml_document doc;
@@ -13,47 +11,16 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<GUIObject>& elem
     
     for(pugi::xml_node frame : root.children("Frame"))
     {  
-        Value x;
-        x.set(frame.attribute("x").as_string());
-        if(!x.percentify())
-            x.set(frame.attribute("x").as_int());
+        uint8_t x = frame.attribute("x").as_uint();
+        uint8_t y = frame.attribute("y").as_uint();
+        uint8_t w = frame.attribute("w").as_uint();
+        uint8_t h = frame.attribute("h").as_uint();
 
-        Value y;
-        y.set(frame.attribute("y").as_string());
-        if(!y.percentify())
-            y.set(frame.attribute("y").as_int());
+        const char* hexColor = frame.attribute("color").as_string();
+        int r, g, b;
+        std::sscanf(hexColor, "#%02x%02x%02x", &r, &g, &b);
 
-        Value w;
-        w.set(frame.attribute("w").as_string());
-        if(!w.percentify())
-            w.set(frame.attribute("w").as_int());
 
-        Value h;
-        h.set(frame.attribute("h").as_string());
-        if(!h.percentify())
-            h.set(frame.attribute("h").as_int());
-
-        Value color;
-        color.set(frame.attribute("color").as_string());
-
-        elements.push_back(gui::Frame(std::get<int>(x.data), std::get<int>(y.data), std::get<int>(w.data), std::get<int>(h.data), std::get<std::string>(color.data)));
+        elements.push_back(gui::Frame(x,y,w,h, {r,g,b}));
     }
-}
-
-bool ke::util::Value::percentify()
-{
-    if(auto* s = std::get_if<std::string>(&data))
-        {
-            if(auto pos = s->find('%'); pos != std::string::npos)
-            {
-                s->erase(pos);
-                int value = std::stoi(*s);
-
-                set(value);
-                type = PERCENT;
-
-                return true;
-            }
-        }
-    return false;
 }

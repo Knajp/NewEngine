@@ -4,6 +4,7 @@
 #include <variant>
 #include <type_traits>
 #include "Logger.hpp"
+#include <glm/glm.hpp>
 
 namespace ke
 {
@@ -13,19 +14,21 @@ namespace ke
         {
         public:
             Element() = default;
-            Element(int _x, int _y, int _w, int _h, std::string _color)
+            Element(uint8_t _x, uint8_t _y, uint8_t _w, uint8_t _h, glm::vec3 _color)
                 : x(_x), y(_y), w(_w), h(_h), color(_color) {}
-            int x,y;
-            int w,h;
-            std::string color;
+            
+            uint8_t x, y;
+            uint8_t w,h;
 
+            glm::vec3 color;
         };
+
 
         class Frame : public Element
         {
         public:
             Frame() = default;
-            Frame(int _x, int _y, int _w, int _h, std::string _color)
+            Frame(uint8_t _x, uint8_t _y, uint8_t _w, uint8_t _h, glm::vec3 _color)
                 : Element(_x,_y,_w,_h,_color){}
 
         };
@@ -33,21 +36,6 @@ namespace ke
     using GUIObject = std::variant<ke::gui::Element, ke::gui::Frame>;
     namespace util
     {
-        
-        enum XMLVALTYPE 
-        {
-            INTEGER, PERCENT, STRING, BOOL, MAX_ENUM
-        };
-        
-        struct Value
-        {
-            XMLVALTYPE type;
-            std::variant<int, std::string, bool> data;
-
-            template<typename T>
-            void set(T val);
-            bool percentify();
-        };
 
         class XML
         {
@@ -64,26 +52,5 @@ namespace ke
 
             util::Logger mLogger = util::Logger("XML parser logger");
         };
-
-        template <typename T>
-        inline void Value::set(T val)
-        {
-            if constexpr(std::is_same_v<T, int>)
-            {
-                data = val;
-                type = XMLVALTYPE::INTEGER;
-            }
-            else if constexpr(std::is_same_v<T, std::string>)
-            {
-                data = val;
-                type = XMLVALTYPE::STRING;
-            }
-            else if constexpr(std::is_same_v<T,bool>)
-            {
-                data = val;
-                type = XMLVALTYPE::BOOL;
-            }
-            
-        }
     }
 }
