@@ -39,11 +39,13 @@ void ke::Core::Application::run()
 
     while (!mWindow->shouldClose())
     {
+
         mWindow->calculateAspectRatio();
         mRenderer.readyCanvas(mWindow->getWindowHandle());
-
+        VkCommandBuffer cb = mRenderer.getCurrentCommandBuffer();
         mRenderer.updateDemoUniforms(mWindow->getAspectRatio());
-        mRenderer.drawDemo();
+        
+        mUIManager.drawComponents(cb);
 
         mRenderer.finishDraw(mWindow->getWindowHandle());
         Graphics::Window::pollEvents();

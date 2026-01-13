@@ -43,8 +43,6 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
-    createVertexBuffer();
-    createIndexBuffer();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -66,12 +64,6 @@ void ke::Graphics::Renderer::terminate()
         vkFreeMemory(mDevice, uniformBuffersMemory[i], nullptr);
     }
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
-
-    vkDestroyBuffer(mDevice, indexBuffer, nullptr);
-    vkFreeMemory(mDevice, indexBufferMemory, nullptr);
-
-    vkDestroyBuffer(mDevice, vertexBuffer, nullptr);
-    vkFreeMemory(mDevice, vertexBufferMemory, nullptr);
 
     for(size_t i = 0; i < mSwapchainImages.size(); i++)
         vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
@@ -121,6 +113,8 @@ void ke::Graphics::Renderer::readyCanvas(GLFWwindow *window)
     vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);
 
     beginRecording(mCommandBuffers[currentFrameInFlight]);
+    vkCmdBindDescriptorSets(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+
 }
 
 void ke::Graphics::Renderer::updateDemoUniforms(float aspectRatio)
@@ -131,27 +125,13 @@ void ke::Graphics::Renderer::updateDemoUniforms(float aspectRatio)
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     util::UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(45.0f, aspectRatio, 0.1f, 10.0f);
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::mat4(1.0f);
+    ubo.proj = glm::mat4(1.0f);
+    ubo.view = glm::mat4(1.0f);
     
     ubo.proj[1][1] *= -1;
 
     memcpy(uniformBuffersMapped[currentFrameInFlight], &ubo, sizeof(ubo));
-}
-
-void ke::Graphics::Renderer::drawDemo()
-{
-
-    VkBuffer vertexBuffers[] = {vertexBuffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(mCommandBuffers[currentFrameInFlight], 0, 1, vertexBuffers, offsets);
-
-    vkCmdBindIndexBuffer(mCommandBuffers[currentFrameInFlight], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-
-    vkCmdBindDescriptorSets(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
-
-    vkCmdDrawIndexed(mCommandBuffers[currentFrameInFlight], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }
 
 void ke::Graphics::Renderer::finishDraw(GLFWwindow *window)
@@ -890,7 +870,7 @@ void ke::Graphics::Renderer::endRecording(VkCommandBuffer buffer)
         mLogger.error("Failed to record command buffer!");
 }
 
-void ke::Graphics::Renderer::createVertexBuffer()
+void ke::Graphics::Renderer::createVertexBuffer(const std::vector<util::str::Vertex2P3C>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)
 {
     VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
 
@@ -903,16 +883,16 @@ void ke::Graphics::Renderer::createVertexBuffer()
         memcpy(data, vertices.data(), (size_t) size);
     vkUnmapMemory(mDevice, stagingBufferMemory);
 
-    createBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+    createBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, targetBuffer, targetMemory);
     
-    copyBuffer(stagingBuffer, vertexBuffer, size);
+    copyBuffer(stagingBuffer, targetBuffer, size);
 
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
     vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
 
 }
 
-void ke::Graphics::Renderer::createIndexBuffer()
+void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)
 {
     VkDeviceSize size = sizeof(indices[0]) * indices.size();
 
@@ -925,12 +905,17 @@ void ke::Graphics::Renderer::createIndexBuffer()
         memcpy(data, indices.data(), (size_t) size);
     vkUnmapMemory(mDevice, stagingBufferMemory);
 
-    createBuffer(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+    createBuffer(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, targetBuffer, targetMemory);
 
-    copyBuffer(stagingBuffer, indexBuffer, size);
+    copyBuffer(stagingBuffer, targetBuffer, size);
 
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
     vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+}
+
+VkDevice ke::Graphics::Renderer::getDevice() const
+{
+    return mDevice;
 }
 
 uint32_t ke::Graphics::Renderer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
@@ -985,6 +970,11 @@ void ke::Graphics::Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags 
     vkBindBufferMemory(mDevice, buffer, bufferMemory, 0);
 
 
+}
+
+VkCommandBuffer ke::Graphics::Renderer::getCurrentCommandBuffer()
+{
+    return mCommandBuffers[currentFrameInFlight];
 }
 
 void ke::Graphics::Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)

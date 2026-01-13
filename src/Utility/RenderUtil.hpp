@@ -1,3 +1,6 @@
+#pragma once
+
+#include <vulkan/vulkan.h>
 #include <optional>
 #include <fstream>
 #include <glm/glm.hpp>

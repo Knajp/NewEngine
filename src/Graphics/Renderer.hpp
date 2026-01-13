@@ -30,10 +30,15 @@ namespace ke
 
             void readyCanvas(GLFWwindow* window);
             void updateDemoUniforms(float aspectRatio);
-            void drawDemo();
             void finishDraw(GLFWwindow* window);
 
             void signalWindowResize();
+            void createVertexBuffer(const std::vector<util::str::Vertex2P3C>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+            void createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+
+            VkDevice getDevice() const;
+
+            VkCommandBuffer getCurrentCommandBuffer();
         private:
             Renderer() = default;
 
@@ -66,11 +71,10 @@ namespace ke
             void beginRecording(VkCommandBuffer buffer);
             void endRecording(VkCommandBuffer buffer);
 
-            void createVertexBuffer();
-            void createIndexBuffer();
+            void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory );
+
             uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-            void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory );
             void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
             
             void createDescriptorSetLayout();
@@ -132,25 +136,6 @@ namespace ke
             uint32_t currentFrameInFlight = 0;
             uint32_t currentImageIndex = 0;
             bool framebufferResized = false;
-
-            VkBuffer vertexBuffer;
-            VkDeviceMemory vertexBufferMemory;
-
-            VkBuffer indexBuffer;
-            VkDeviceMemory indexBufferMemory;
-        };
-
-        const std::vector<util::str::Vertex2P3C> vertices = {
-            {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-            {{-0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-            {{ 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-            {{ 0.5f, -0.5f}, {1.0f, 1.0f, 0.0f}}
-        };
-
-        const std::vector<uint16_t> indices =
-        {
-            0, 3, 2,
-            2, 1, 0
         };
     }
 }

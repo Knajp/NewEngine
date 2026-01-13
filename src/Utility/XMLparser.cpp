@@ -11,16 +11,19 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<GUIObject>& elem
     
     for(pugi::xml_node frame : root.children("Frame"))
     {  
-        uint8_t x = frame.attribute("x").as_uint();
-        uint8_t y = frame.attribute("y").as_uint();
-        uint8_t w = frame.attribute("w").as_uint();
-        uint8_t h = frame.attribute("h").as_uint();
+        float x = frame.attribute("x").as_float();
+        float y = frame.attribute("y").as_float();
+        float w = frame.attribute("w").as_float();
+        float h = frame.attribute("h").as_float();
 
         const char* hexColor = frame.attribute("color").as_string();
         int r, g, b;
         std::sscanf(hexColor, "#%02x%02x%02x", &r, &g, &b);
 
+        float rf = r / 255.0f;
+        float gf = g / 255.0f;
+        float bf = b / 255.0f;
 
-        elements.push_back(gui::Frame(x,y,w,h, {r,g,b}));
+        elements.push_back(gui::Frame(x,y,w,h, {rf,gf,bf}));
     }
 }

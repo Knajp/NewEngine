@@ -14,11 +14,11 @@ namespace ke
         {
         public:
             Element() = default;
-            Element(uint8_t _x, uint8_t _y, uint8_t _w, uint8_t _h, glm::vec3 _color)
+            Element(float _x, float _y, float _w, float _h, glm::vec3 _color)
                 : x(_x), y(_y), w(_w), h(_h), color(_color) {}
             
-            uint8_t x, y;
-            uint8_t w,h;
+            float x, y;
+            float w,h;
 
             glm::vec3 color;
         };
@@ -28,7 +28,7 @@ namespace ke
         {
         public:
             Frame() = default;
-            Frame(uint8_t _x, uint8_t _y, uint8_t _w, uint8_t _h, glm::vec3 _color)
+            Frame(float _x, float _y, float _w, float _h, glm::vec3 _color)
                 : Element(_x,_y,_w,_h,_color){}
 
         };
