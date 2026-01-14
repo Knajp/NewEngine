@@ -4,10 +4,12 @@
 #include <optional>
 #include <fstream>
 #include <glm/glm.hpp>
+#include <utility>
+#include <iostream>
 
 namespace ke
 {
-    namespace util
+    namespace util 
     {
         struct QueueFamilyIndices
         {
@@ -57,6 +59,36 @@ namespace ke
         {
             VkBuffer buffer;
             VkDeviceMemory bufferMemory;
+            VkDevice device;
+
+            Buffer() = default;
+            Buffer(VkDevice _device) 
+                : device(_device){}
+            ~Buffer()
+            {
+                assert(device != VK_NULL_HANDLE);
+                if(buffer == VK_NULL_HANDLE) return;
+                
+                vkDestroyBuffer(device, buffer, nullptr);
+                vkFreeMemory(device, bufferMemory, nullptr);
+            }
+
+            Buffer(Buffer&& other)
+                : buffer(std::exchange(other.buffer, VK_NULL_HANDLE)),
+                  bufferMemory(std::exchange(other.bufferMemory, VK_NULL_HANDLE)){}
+            Buffer& operator=(Buffer&& other)
+            {
+                if(this == &other) return *this;
+
+                buffer = std::exchange(other.buffer, VK_NULL_HANDLE);
+                bufferMemory = std::exchange(other.bufferMemory, VK_NULL_HANDLE);
+
+
+                return *this;
+            }
+
+            Buffer(const Buffer& other) = delete;
+            Buffer operator=(const Buffer& other) = delete;
         };
     }
 }

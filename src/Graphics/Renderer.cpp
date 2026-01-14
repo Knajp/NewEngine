@@ -126,7 +126,7 @@ void ke::Graphics::Renderer::updateDemoUniforms(float aspectRatio)
 
     util::UniformBufferObject ubo{};
     ubo.model = glm::mat4(1.0f);
-    ubo.proj = glm::mat4(1.0f);
+    ubo.proj = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
     ubo.view = glm::mat4(1.0f);
     
     ubo.proj[1][1] *= -1;
@@ -839,7 +839,7 @@ void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
     renderBegin.renderArea.offset = {0,0};
     renderBegin.renderArea.extent = mSwapchainExtent;
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkClearValue clearColor = {{{0.05f, 0.05f, 0.05f, 1.0f}}};
     renderBegin.clearValueCount = 1;
     renderBegin.pClearValues = &clearColor;
 

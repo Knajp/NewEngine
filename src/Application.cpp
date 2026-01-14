@@ -58,6 +58,10 @@ void ke::Core::Application::terminate()
 {
     mLogger.trace("Proceeding to termination.");
 
+    mLogger.trace("Requesting ui termination.");
+    mUIManager.unloadComponents();
+    mLogger.trace("Finished unloading ui");
+
     mLogger.trace("Requesting renderer termination.");
     mRenderer.terminate();
     mLogger.trace("Finished terminating renderer.");

@@ -1,6 +1,7 @@
 #include "InterfaceManager.hpp"
 
 ke::gui::Component::Component(std::string filepath)
+    : mIndexBuffer(Graphics::Renderer::getInstance().getDevice()), mVertexBuffer(Graphics::Renderer::getInstance().getDevice())
 {
     static util::XML parser = util::XML::getInstance();
 
@@ -44,21 +45,37 @@ ke::gui::Component::Component(std::string filepath)
     VkDeviceSize indicesSize = sizeof(mIndices[0]) * mIndices.size();
 
     Graphics::Renderer& rend = Graphics::Renderer::getInstance();
+
     rend.createVertexBuffer(mVertices, mVertexBuffer.buffer, mVertexBuffer.bufferMemory);
     rend.createIndexBuffer(mIndices, mIndexBuffer.buffer, mIndexBuffer.bufferMemory);
 }
 
-/*
+
 ke::gui::Component::~Component()
 {
-    VkDevice device = Graphics::Renderer::getInstance().getDevice();
-    vkDestroyBuffer(device, mVertexBuffer.buffer, nullptr);
-    vkFreeMemory(device, mVertexBuffer.bufferMemory, nullptr);
-    vkDestroyBuffer(device, mIndexBuffer.buffer, nullptr);
-    vkFreeMemory(device, mIndexBuffer.bufferMemory, nullptr);
 }
-*/
 
+ke::gui::Component::Component(Component&& other) noexcept
+    : mFrames(std::move(other.mFrames)),
+      mIndexBuffer(std::move(other.mIndexBuffer)),
+      mVertexBuffer(std::move(other.mVertexBuffer)),
+      mIndices(std::move(other.mIndices)),
+      mVertices(std::move(other.mVertices))
+{
+}
+
+ke::gui::Component& ke::gui::Component::operator=(Component&& other) noexcept
+{
+    if (this != &other)
+    {
+        mFrames = std::move(other.mFrames);
+        mIndexBuffer = std::move(other.mIndexBuffer);
+        mVertexBuffer = std::move(other.mVertexBuffer);
+        mIndices = std::move(other.mIndices);
+        mVertices = std::move(other.mVertices);
+    }
+    return *this;
+}
 void ke::gui::Component::Draw(VkCommandBuffer commandBuffer)
 {
     VkBuffer vertexBuffers[] = {mVertexBuffer.buffer};
@@ -81,7 +98,10 @@ void ke::gui::UImanager::loadComponents()
         for(auto const& direntry : std::filesystem::directory_iterator{targetPath})
         {
             if(std::filesystem::is_regular_file(direntry.path()))
-                mComponents.push_back(gui::Component(direntry.path().string()));
+            {
+                mComponents.emplace_back(direntry.path().string());
+            }
+                
         }
     }catch(std::filesystem::filesystem_error const& err)
         {std::cout << "Error while reading directory: " << err.what() << std::endl;}
@@ -94,4 +114,10 @@ void ke::gui::UImanager::drawComponents(VkCommandBuffer commandBuffer)
     {
         comp.Draw(commandBuffer);
     }
+}
+
+void ke::gui::UImanager::unloadComponents()
+{
+    vkDeviceWaitIdle(Graphics::Renderer::getInstance().getDevice());
+    mComponents.clear();
 }

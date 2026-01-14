@@ -15,7 +15,10 @@ namespace ke
         public:
             Component() = default;
             Component(std::string filepath);
-            //~Component();
+            ~Component();
+
+            Component(Component&& other) noexcept;
+            ke::gui::Component& operator=(Component&& other) noexcept;
             
             void Draw(VkCommandBuffer commandBuffer);
         private:
@@ -37,6 +40,7 @@ namespace ke
             
             void loadComponents();
             void drawComponents(VkCommandBuffer commandBuffer);
+            void unloadComponents();
         private:
             UImanager() = default;
 
