@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<KEUIcomponent name="explorer" x="80" y="0" w="20" h="100">
+    <Frame x="0" y="0" w="100" h="100" color="#ff0000"></Frame>
+    <Frame x="1" y="1" w="98" h="98" color="#ffff00"></Frame>
+</KEUIcomponent>

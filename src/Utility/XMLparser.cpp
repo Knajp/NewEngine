@@ -9,12 +9,22 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<GUIObject>& elem
 
     pugi::xml_node root = doc.child("KEUIcomponent");
     
+    float rootx = root.attribute("x").as_float() / 100.0f;
+    float rooty = root.attribute("y").as_float() / 100.0f;
+    float rootw = root.attribute("w").as_float() / 100.0f;
+    float rooth = root.attribute("h").as_float() / 100.0f;
+
     for(pugi::xml_node frame : root.children("Frame"))
     {  
-        float x = frame.attribute("x").as_float();
-        float y = frame.attribute("y").as_float();
-        float w = frame.attribute("w").as_float();
-        float h = frame.attribute("h").as_float();
+        float x = frame.attribute("x").as_float() / 100.0f;
+        float y = frame.attribute("y").as_float() / 100.0f;
+        float w = frame.attribute("w").as_float() / 100.0f;
+        float h = frame.attribute("h").as_float() / 100.0f;
+
+        x = rootx + rootw * x;
+        y = rooty + rooth * y;
+        w *= rootw;
+        h *= rooth;
 
         const char* hexColor = frame.attribute("color").as_string();
         int r, g, b;

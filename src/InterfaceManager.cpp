@@ -12,18 +12,18 @@ ke::gui::Component::Component(std::string filepath)
     {
         gui::Frame frame = std::get<gui::Frame>(obj);
 
-        float x = frame.x / 100;
+        float x = frame.x;
         x *= 2.0f;
         x -= 1.0f;
 
-        float y = frame.y / 100;
+        float y = frame.y;
         y *= 2.0f;
         y -= 1.0f;
 
-        float w = frame.w / 100;
+        float w = frame.w;
         w *= 2.0f;
 
-        float h = frame.h / 100;
+        float h = frame.h;
         h *= 2.0f;
 
         mVertices.push_back({{x, y + h}, {frame.color.r, frame.color.g, frame.color.b}});
@@ -90,7 +90,7 @@ void ke::gui::Component::Draw(VkCommandBuffer commandBuffer)
 }
 
 void ke::gui::UImanager::loadComponents()
-{
+{   
     const std::filesystem::path targetPath{"./src/UI/"};
 
     try

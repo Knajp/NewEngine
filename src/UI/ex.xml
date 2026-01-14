@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<KEUIcomponent name="example">
-    <Frame x="25" y="25" w="50" h="50" color="#ffff00"></Frame>
-</KEUIcomponent>
