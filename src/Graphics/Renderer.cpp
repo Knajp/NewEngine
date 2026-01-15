@@ -839,7 +839,7 @@ void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
     renderBegin.renderArea.offset = {0,0};
     renderBegin.renderArea.extent = mSwapchainExtent;
 
-    VkClearValue clearColor = {{{0.05f, 0.05f, 0.05f, 1.0f}}};
+    VkClearValue clearColor = {{{util::srgbToLinear(0.082f), util::srgbToLinear(0.18f), util::srgbToLinear(0.2f), 1.0f}}};
     renderBegin.clearValueCount = 1;
     renderBegin.pClearValues = &clearColor;
 

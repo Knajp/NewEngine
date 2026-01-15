@@ -48,6 +48,9 @@ namespace ke
             return buffer;
         }
 
+        static float srgbToLinear(float c)
+        {return powf(c, 2.2f);}
+
         struct UniformBufferObject
         {
             glm::mat4 model;
@@ -75,7 +78,8 @@ namespace ke
 
             Buffer(Buffer&& other)
                 : buffer(std::exchange(other.buffer, VK_NULL_HANDLE)),
-                  bufferMemory(std::exchange(other.bufferMemory, VK_NULL_HANDLE)){}
+                  bufferMemory(std::exchange(other.bufferMemory, VK_NULL_HANDLE)),
+                  device(other.device){}
             Buffer& operator=(Buffer&& other)
             {
                 if(this == &other) return *this;

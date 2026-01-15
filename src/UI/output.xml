@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<KEUIcomponent name="explorer" x="80" y="0" w="20" h="97">
+<KEUIcomponent name="output" x="0" y="0" w="80" h="20">
     <Frame x="0" y="0" w="100" h="100" color="#314f55"></Frame>
-</KEUIcomponent>
+</KEUIcomponent> 

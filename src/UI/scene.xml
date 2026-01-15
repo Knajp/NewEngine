@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<KEUIcomponent name="scene" x="0" y="20" w="80" h="77">
+    <Frame x="0" y="0" w="100" h="100" color="#98a7aa"></Frame>
+</KEUIcomponent>
