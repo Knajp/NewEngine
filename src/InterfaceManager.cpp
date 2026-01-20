@@ -89,7 +89,7 @@ void ke::gui::Component::Draw(VkCommandBuffer commandBuffer)
 
 }
 
-void ke::gui::UImanager::loadComponents()
+void ke::gui::UImanager::loadComponents(GLFWwindow* window)
 {   
     const std::filesystem::path targetPath{"./src/UI/"};
 
@@ -97,9 +97,14 @@ void ke::gui::UImanager::loadComponents()
     {
         for(auto const& direntry : std::filesystem::directory_iterator{targetPath})
         {
-            if(std::filesystem::is_regular_file(direntry.path()))
-            {
+            if(!std::filesystem::is_regular_file(direntry.path())) continue;
+
+            if(direntry.path().filename().string() != "scene.xml")
                 mComponents.emplace_back(direntry.path().string());
+            else
+            {
+                mSceneComponent = SceneComponent(direntry.path().string(), window);
+                std::cout << "AFTER MOVE POS X IS " << mSceneComponent.extent.x << "\n";
             }
                 
         }
@@ -120,4 +125,40 @@ void ke::gui::UImanager::unloadComponents()
 {
     vkDeviceWaitIdle(Graphics::Renderer::getInstance().getDevice());
     mComponents.clear();
+}
+
+glm::ivec2 ke::gui::UImanager::getSceneComponentPosition() const
+{
+    return mSceneComponent.pos;
+}
+
+glm::ivec2 ke::gui::UImanager::getSceneComponentExtent() const
+{
+    return mSceneComponent.extent;
+}
+
+ke::gui::SceneComponent::SceneComponent(std::string filepath, GLFWwindow* window)
+{
+    static util::XML parser = util::XML::getInstance();
+
+    int x, y;
+    glfwGetFramebufferSize(window, &x, &y);
+
+    parser.parseSceneFile(filepath, pos, extent, x, y);
+}
+
+ke::gui::SceneComponent::SceneComponent(SceneComponent &&other) noexcept
+    :pos(other.pos), extent(other.extent)
+{
+
+}
+
+ke::gui::SceneComponent &ke::gui::SceneComponent::operator=(SceneComponent &&other) noexcept
+{
+    if(this == &other) return *this;
+
+    pos = other.pos;
+    extent = other.extent;
+
+    return *this;
 }

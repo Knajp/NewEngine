@@ -27,6 +27,7 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<GUIObject>& elem
         w *= rootw;
         h *= rooth;
 
+
         const char* hexColor = frame.attribute("color").as_string();
         int r, g, b;
         std::sscanf(hexColor, "#%02x%02x%02x", &r, &g, &b);
@@ -36,5 +37,39 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<GUIObject>& elem
         float bf = util::srgbToLinear(b / 255.0f);
 
         elements.push_back(gui::Frame(x,y,w,h, {rf,gf,bf}));
+    }
+}
+
+void ke::util::XML::parseSceneFile(std::string filepath, glm::ivec2 &offset, glm::ivec2 &extent, int wx, int wy)
+{
+    pugi::xml_document doc;
+    pugi::xml_parse_result result = doc.load_file(filepath.c_str());
+
+    pugi::xml_node root = doc.child("KEUIcomponent");
+
+    float rootx = root.attribute("x").as_float() / 100.0f;
+    float rooty = root.attribute("y").as_float() / 100.0f;
+    float rootw = root.attribute("w").as_float() / 100.0f;
+    float rooth = root.attribute("h").as_float() / 100.0f;
+
+    for(pugi::xml_node scene: root.children("SceneView"))
+    {
+        float x = scene.attribute("x").as_float() / 100.0f;
+        float y = scene.attribute("y").as_float() / 100.0f;
+        float w = scene.attribute("w").as_float() / 100.0f;
+        float h = scene.attribute("h").as_float() / 100.0f;
+
+        x = rootx + rootw * x;
+        y = rooty + rooth * y;
+        w *= rootw;
+        h *= rooth;
+
+        int rx = static_cast<int>(std::round(wx * x));
+        int ry = static_cast<int>(std::round(wy * y));
+        int rw = static_cast<int>(std::round(wx * w));
+        int rh = static_cast<int>(std::round(wy * h));  
+        
+        offset = {rx, ry};
+        extent = {rw, rh};
     }
 }

@@ -660,6 +660,7 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = stageInfos;
     pipelineInfo.pVertexInputState = &vertexInput;
@@ -675,6 +676,9 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
 
     if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mPipeline) != VK_SUCCESS)
         mLogger.critical("Failed to create a graphics pipeline!");
+        
+    if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mDisplayPipeline) != VK_SUCCESS)
+        mLogger.critical("Failed to create a second pipeline!");
 
     vkDestroyShaderModule(mDevice, vertexModule, nullptr);
     vkDestroyShaderModule(mDevice, fragmentModule, nullptr);
@@ -839,7 +843,7 @@ void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
     renderBegin.renderArea.offset = {0,0};
     renderBegin.renderArea.extent = mSwapchainExtent;
 
-    VkClearValue clearColor = {{{util::srgbToLinear(0.082f), util::srgbToLinear(0.18f), util::srgbToLinear(0.2f), 1.0f}}};
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
     renderBegin.clearValueCount = 1;
     renderBegin.pClearValues = &clearColor;
 
@@ -911,6 +915,36 @@ void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint16_t>& indi
 
     vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
     vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+}
+
+void ke::Graphics::Renderer::bindUIPipeline(VkCommandBuffer buffer)
+{
+    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+
+    VkViewport viewport{};
+    viewport.height = mSwapchainExtent.height;
+    viewport.width = mSwapchainExtent.width;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+
+    VkRect2D scissor{};
+    scissor.extent = mSwapchainExtent;
+    scissor.offset = {0, 0};
+
+    vkCmdSetViewport(buffer, 0, 1, &viewport);
+    vkCmdSetScissor(buffer, 0, 1, &scissor);
+}
+
+void ke::Graphics::Renderer::bindScenePipeline(VkCommandBuffer buffer, const VkViewport& viewport, const VkRect2D& scissor)
+{
+    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mDisplayPipeline);
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+
+    vkCmdSetViewport(buffer, 0, 1, &viewport);
+    vkCmdSetScissor(buffer, 0, 1, &scissor);
 }
 
 VkDevice ke::Graphics::Renderer::getDevice() const

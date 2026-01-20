@@ -36,6 +36,9 @@ namespace ke
             void createVertexBuffer(const std::vector<util::str::Vertex2P3C>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
             void createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
 
+            void bindUIPipeline(VkCommandBuffer buffer);
+            void bindScenePipeline(VkCommandBuffer buffer, const VkViewport& viewport, const VkRect2D& scissor);
+
             VkDevice getDevice() const;
 
             VkCommandBuffer getCurrentCommandBuffer();
@@ -110,6 +113,8 @@ namespace ke
             VkPipelineLayout mPipelineLayout;
             VkPipeline mPipeline;
             VkRenderPass mRenderPass;
+
+            VkPipeline mDisplayPipeline;
 
             VkCommandPool mCommandPool;
             std::vector<VkCommandBuffer> mCommandBuffers;

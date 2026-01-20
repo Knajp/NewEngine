@@ -69,7 +69,6 @@ namespace ke
                 : device(_device){}
             ~Buffer()
             {
-                assert(device != VK_NULL_HANDLE);
                 if(buffer == VK_NULL_HANDLE) return;
                 
                 vkDestroyBuffer(device, buffer, nullptr);

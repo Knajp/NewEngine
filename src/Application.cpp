@@ -27,8 +27,12 @@ void ke::Core::Application::init()
     mLogger.trace("Finished initializing renderer.");
 
     mLogger.trace("Requesting UI manager load");
-    mUIManager.loadComponents();
+    mUIManager.loadComponents(mWindow->getWindowHandle());
     mLogger.info("Finished loading UI manager.");
+
+    int width, height;
+    glfwGetFramebufferSize(mWindow->getWindowHandle(), &width, &height);
+    mSceneManager.init(mUIManager.getSceneComponentPosition(), mUIManager.getSceneComponentExtent(), height);
 
     mLogger.info("Finished application initialization.");
 }
@@ -45,7 +49,13 @@ void ke::Core::Application::run()
         VkCommandBuffer cb = mRenderer.getCurrentCommandBuffer();
         mRenderer.updateDemoUniforms(mWindow->getAspectRatio());
         
+        mRenderer.bindUIPipeline(cb);
+
         mUIManager.drawComponents(cb);
+
+        mRenderer.bindScenePipeline(cb, mSceneManager.getViewport(), mSceneManager.getScissor());
+
+        mSceneManager.drawDemo(cb);
 
         mRenderer.finishDraw(mWindow->getWindowHandle());
         Graphics::Window::pollEvents();

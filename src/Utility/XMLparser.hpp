@@ -47,6 +47,7 @@ namespace ke
             }
 
             void parseFile(std::string filepath, std::vector<GUIObject>& elements);
+            void parseSceneFile(std::string filepath, glm::ivec2& offset, glm::ivec2& extent, int wx, int wy);
         private:
             XML() = default;
 
