@@ -29,7 +29,8 @@ namespace ke
             void terminate();
 
             void readyCanvas(GLFWwindow* window);
-            void updateDemoUniforms(float aspectRatio);
+            void updateUIUniforms(float aspectRatio);
+            void updateSceneUniforms(float aspectRatio);
             void finishDraw(GLFWwindow* window);
 
             void signalWindowResize();
@@ -132,8 +133,14 @@ namespace ke
             std::vector<VkDeviceMemory> uniformBuffersMemory;
             std::vector<void*> uniformBuffersMapped;
 
+            std::vector<VkBuffer> sceneUniformBuffers;
+            std::vector<VkDeviceMemory> sceneUniformBuffersMemory;
+            std::vector<void*> sceneUniformBuffersMapped;
+
             VkDescriptorPool mDescriptorPool;
-            std::vector<VkDescriptorSet> mDescriptorSets;
+            std::vector<VkDescriptorSet> mUIDescriptorSets;
+            std::vector<VkDescriptorSet> mSceneDescriptorSets;
+
             //DEBUG
             VkDebugUtilsMessengerEXT mDebugMessenger;
 

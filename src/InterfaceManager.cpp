@@ -102,10 +102,7 @@ void ke::gui::UImanager::loadComponents(GLFWwindow* window)
             if(direntry.path().filename().string() != "scene.xml")
                 mComponents.emplace_back(direntry.path().string());
             else
-            {
                 mSceneComponent = SceneComponent(direntry.path().string(), window);
-                std::cout << "AFTER MOVE POS X IS " << mSceneComponent.extent.x << "\n";
-            }
                 
         }
     }catch(std::filesystem::filesystem_error const& err)

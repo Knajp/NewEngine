@@ -47,8 +47,10 @@ void ke::Core::Application::run()
         mWindow->calculateAspectRatio();
         mRenderer.readyCanvas(mWindow->getWindowHandle());
         VkCommandBuffer cb = mRenderer.getCurrentCommandBuffer();
-        mRenderer.updateDemoUniforms(mWindow->getAspectRatio());
-        
+
+        mRenderer.updateUIUniforms(mWindow->getAspectRatio());
+        mRenderer.updateSceneUniforms(mSceneManager.getSceneAspectRatio());
+
         mRenderer.bindUIPipeline(cb);
 
         mUIManager.drawComponents(cb);
@@ -68,9 +70,13 @@ void ke::Core::Application::terminate()
 {
     mLogger.trace("Proceeding to termination.");
 
-    mLogger.trace("Requesting ui termination.");
+    mLogger.info("Requesting scene termination.");
+    mSceneManager.terminate();
+    mLogger.info("Finished unloading scene.");
+    
+    mLogger.info("Requesting ui termination.");
     mUIManager.unloadComponents();
-    mLogger.trace("Finished unloading ui");
+    mLogger.info("Finished unloading ui");
 
     mLogger.trace("Requesting renderer termination.");
     mRenderer.terminate();

@@ -10,6 +10,7 @@ void ke::SceneManager::drawDemo(VkCommandBuffer buffer)
 
 void ke::SceneManager::init(glm::ivec2 pos, glm::ivec2 extent, int windowHeight)
 {
+    vertexBuffer = util::Buffer(Graphics::Renderer::getInstance().getDevice());
     Graphics::Renderer::getInstance().createVertexBuffer(vertices, vertexBuffer.buffer, vertexBuffer.bufferMemory);
 
     mSceneViewport.height = extent.y;
@@ -21,6 +22,16 @@ void ke::SceneManager::init(glm::ivec2 pos, glm::ivec2 extent, int windowHeight)
 
     mSceneScissor.extent = {static_cast<uint32_t>(extent.x), static_cast<uint32_t>(extent.y)};
     mSceneScissor.offset = {pos.x, windowHeight - (pos.y + extent.y)};
+}
+
+float ke::SceneManager::getSceneAspectRatio() const
+{
+    return mSceneViewport.width / mSceneViewport.height;
+}
+
+void ke::SceneManager::terminate()
+{
+    vertexBuffer.destroy();
 }
 
 const VkViewport &ke::SceneManager::getViewport() const

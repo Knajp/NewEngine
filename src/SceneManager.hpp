@@ -19,6 +19,10 @@ namespace ke
         void drawDemo(VkCommandBuffer buffer);
         void init(glm::ivec2 pos, glm::ivec2 extent, int windowHeight);
 
+        float getSceneAspectRatio() const;
+
+        void terminate();
+
         const VkViewport& getViewport() const;
         const VkRect2D& getScissor() const;
     private:

@@ -60,32 +60,56 @@ namespace ke
 
         struct Buffer
         {
-            VkBuffer buffer;
-            VkDeviceMemory bufferMemory;
-            VkDevice device;
+            VkBuffer buffer = VK_NULL_HANDLE;
+            VkDeviceMemory bufferMemory = VK_NULL_HANDLE;
+            VkDevice device = VK_NULL_HANDLE;
 
             Buffer() = default;
             Buffer(VkDevice _device) 
                 : device(_device){}
-            ~Buffer()
+
+            void destroy()
             {
                 if(buffer == VK_NULL_HANDLE) return;
-                
+                if(device == VK_NULL_HANDLE) std::cout << "VULKAN LOGICAL DEVICE IS NULL ON BUFFER DESTRUCTION!\n";
+
+                vkDeviceWaitIdle(device);
+
                 vkDestroyBuffer(device, buffer, nullptr);
                 vkFreeMemory(device, bufferMemory, nullptr);
+
+                buffer = VK_NULL_HANDLE;
+                bufferMemory = VK_NULL_HANDLE;
+                device = VK_NULL_HANDLE;
+            }
+            ~Buffer()
+            {
+                destroy();
             }
 
             Buffer(Buffer&& other)
                 : buffer(std::exchange(other.buffer, VK_NULL_HANDLE)),
                   bufferMemory(std::exchange(other.bufferMemory, VK_NULL_HANDLE)),
                   device(other.device){}
+
             Buffer& operator=(Buffer&& other)
             {
                 if(this == &other) return *this;
 
+                if(buffer != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+                {
+                    vkDeviceWaitIdle(device);
+
+                    vkDestroyBuffer(device, buffer, nullptr);
+                    vkFreeMemory(device, bufferMemory, nullptr);
+                }
+
+                buffer = VK_NULL_HANDLE;
+                bufferMemory = VK_NULL_HANDLE;
+
                 buffer = std::exchange(other.buffer, VK_NULL_HANDLE);
                 bufferMemory = std::exchange(other.bufferMemory, VK_NULL_HANDLE);
-
+                device = other.device;
 
                 return *this;
             }

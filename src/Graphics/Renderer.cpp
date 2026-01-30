@@ -60,6 +60,12 @@ void ke::Graphics::Renderer::terminate()
 
     for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
     {
+        vkDestroyBuffer(mDevice, sceneUniformBuffers[i], nullptr);
+        vkFreeMemory(mDevice, sceneUniformBuffersMemory[i], nullptr);
+    }
+
+    for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
+    {
         vkDestroyBuffer(mDevice, uniformBuffers[i], nullptr);
         vkFreeMemory(mDevice, uniformBuffersMemory[i], nullptr);
     }
@@ -77,6 +83,7 @@ void ke::Graphics::Renderer::terminate()
 
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
+    vkDestroyPipeline(mDevice, mDisplayPipeline, nullptr);
     
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
@@ -113,17 +120,10 @@ void ke::Graphics::Renderer::readyCanvas(GLFWwindow *window)
     vkResetCommandBuffer(mCommandBuffers[currentFrameInFlight], 0);
 
     beginRecording(mCommandBuffers[currentFrameInFlight]);
-    vkCmdBindDescriptorSets(mCommandBuffers[currentFrameInFlight], VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
-
 }
 
-void ke::Graphics::Renderer::updateDemoUniforms(float aspectRatio)
+void ke::Graphics::Renderer::updateUIUniforms(float aspectRatio)
 {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
     util::UniformBufferObject ubo{};
     ubo.model = glm::mat4(1.0f);
     ubo.proj = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
@@ -132,6 +132,18 @@ void ke::Graphics::Renderer::updateDemoUniforms(float aspectRatio)
     ubo.proj[1][1] *= -1;
 
     memcpy(uniformBuffersMapped[currentFrameInFlight], &ubo, sizeof(ubo));
+}
+
+void ke::Graphics::Renderer::updateSceneUniforms(float aspectRatio)
+{
+    util::UniformBufferObject ubo{};
+    ubo.model = glm::mat4(1.0f);
+    ubo.proj = glm::ortho(-aspectRatio, aspectRatio, -1.0f, 1.0f, -1.0f, 1.0f);
+    ubo.view = glm::mat4(1.0f);
+
+    ubo.proj[1][1] *= -1;
+
+    memcpy(sceneUniformBuffersMapped[currentFrameInFlight], &ubo, sizeof(ubo));
 }
 
 void ke::Graphics::Renderer::finishDraw(GLFWwindow *window)
@@ -920,7 +932,7 @@ void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint16_t>& indi
 void ke::Graphics::Renderer::bindUIPipeline(VkCommandBuffer buffer)
 {
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
-    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mUIDescriptorSets[currentFrameInFlight], 0, nullptr);
 
     VkViewport viewport{};
     viewport.height = mSwapchainExtent.height;
@@ -941,7 +953,7 @@ void ke::Graphics::Renderer::bindUIPipeline(VkCommandBuffer buffer)
 void ke::Graphics::Renderer::bindScenePipeline(VkCommandBuffer buffer, const VkViewport& viewport, const VkRect2D& scissor)
 {
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mDisplayPipeline);
-    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSets[currentFrameInFlight], 0, nullptr);
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mSceneDescriptorSets[currentFrameInFlight], 0, nullptr);
 
     vkCmdSetViewport(buffer, 0, 1, &viewport);
     vkCmdSetScissor(buffer, 0, 1, &scissor);
@@ -1080,19 +1092,29 @@ void ke::Graphics::Renderer::createUniformBuffers()
         createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
         vkMapMemory(mDevice, uniformBuffersMemory[i], 0, size, 0, &uniformBuffersMapped[i]);
     }
+
+    sceneUniformBuffers.resize(MAXFRAMESINFLIGHT);
+    sceneUniformBuffersMemory.resize(MAXFRAMESINFLIGHT);
+    sceneUniformBuffersMapped.resize(MAXFRAMESINFLIGHT);
+
+    for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
+    {
+        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sceneUniformBuffers[i], sceneUniformBuffersMemory[i]);
+        vkMapMemory(mDevice, sceneUniformBuffersMemory[i], 0, size, 0, &sceneUniformBuffersMapped[i]);
+    }
 }
 
 void ke::Graphics::Renderer::createDescriptorPool()
 {
     VkDescriptorPoolSize poolSize{};
     poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = static_cast<uint32_t>(MAXFRAMESINFLIGHT);
+    poolSize.descriptorCount = static_cast<uint32_t>(MAXFRAMESINFLIGHT) * 2;
 
     VkDescriptorPoolCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     createInfo.poolSizeCount = 1;
     createInfo.pPoolSizes = &poolSize;
-    createInfo.maxSets = static_cast<uint32_t>(MAXFRAMESINFLIGHT);
+    createInfo.maxSets = static_cast<uint32_t>(MAXFRAMESINFLIGHT) * 2;
 
     if(vkCreateDescriptorPool(mDevice, &createInfo, nullptr, &mDescriptorPool) != VK_SUCCESS)
         mLogger.error("Failed to create descritpor pool!");
@@ -1110,10 +1132,14 @@ void ke::Graphics::Renderer::createDescriptorSets()
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAXFRAMESINFLIGHT);
     allocInfo.pSetLayouts = layouts.data();
 
-    mDescriptorSets.resize(MAXFRAMESINFLIGHT);
-    if(vkAllocateDescriptorSets(mDevice, &allocInfo, mDescriptorSets.data()) != VK_SUCCESS)
+    mUIDescriptorSets.resize(MAXFRAMESINFLIGHT);
+    mSceneDescriptorSets.resize(MAXFRAMESINFLIGHT);
+    if(vkAllocateDescriptorSets(mDevice, &allocInfo, mUIDescriptorSets.data()) != VK_SUCCESS)
         mLogger.error("Failed to allocate descriptor sets!");
     
+    if(vkAllocateDescriptorSets(mDevice, &allocInfo, mSceneDescriptorSets.data()))
+        mLogger.error("Failed to allocate Scene descriptor sets");
+
     mLogger.info("Allocated descriptor sets.");
 
     for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
@@ -1125,9 +1151,29 @@ void ke::Graphics::Renderer::createDescriptorSets()
 
         VkWriteDescriptorSet write{};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = mDescriptorSets[i];
+        write.dstSet = mUIDescriptorSets[i];
         write.dstBinding = 0;
         write.dstArrayElement = 0;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        write.descriptorCount = 1;
+        write.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+    }
+
+    for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
+    {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = sceneUniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(util::UniformBufferObject);
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = mSceneDescriptorSets[i];
+        write.dstBinding = 0;
+        write.dstArrayElement = 0;
+        write.descriptorCount = 1;
         write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         write.descriptorCount = 1;
         write.pBufferInfo = &bufferInfo;
