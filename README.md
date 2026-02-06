@@ -11,5 +11,5 @@ Currently at: Basic UI implementation
 Finished: Index buffers
 
 Most recent demo:
-![Rainbow square](demo/square.png)
+![Rainbow square](demo/display.png)
 
