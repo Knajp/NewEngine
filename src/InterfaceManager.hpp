@@ -27,7 +27,7 @@ namespace ke
             util::Buffer mVertexBuffer;
             util::Buffer mIndexBuffer;
 
-            std::vector<util::str::Vertex2P3C> mVertices;
+            std::vector<util::str::Vertex2P3C2T> mVertices;
             std::vector<uint16_t> mIndices;
         };
 

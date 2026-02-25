@@ -1,5 +1,6 @@
 #include "InterfaceManager.hpp"
 
+
 ke::gui::Component::Component(std::string filepath)
     : mIndexBuffer(Graphics::Renderer::getInstance().getDevice()), mVertexBuffer(Graphics::Renderer::getInstance().getDevice())
 {
@@ -26,10 +27,10 @@ ke::gui::Component::Component(std::string filepath)
         float h = frame.h;
         h *= 2.0f;
 
-        mVertices.push_back({{x, y + h}, {frame.color.r, frame.color.g, frame.color.b}});
-        mVertices.push_back({{x, y}, {frame.color.r, frame.color.g, frame.color.b}});
-        mVertices.push_back({{x + w, y}, {frame.color.r, frame.color.g, frame.color.b}});
-        mVertices.push_back({{x + w, y + h}, {frame.color.r, frame.color.g, frame.color.b}});
+        mVertices.push_back({{x, y + h}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x, y}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x + w, y}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x + w, y + h}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
 
         mIndices.push_back(0 + indexAdvance);
         mIndices.push_back(1 + indexAdvance);
@@ -37,6 +38,7 @@ ke::gui::Component::Component(std::string filepath)
         mIndices.push_back(0 + indexAdvance);
         mIndices.push_back(2 + indexAdvance);
         mIndices.push_back(3 + indexAdvance);
+
 
         indexAdvance += 4;
     }
@@ -78,6 +80,8 @@ ke::gui::Component& ke::gui::Component::operator=(Component&& other) noexcept
 }
 void ke::gui::Component::Draw(VkCommandBuffer commandBuffer)
 {
+    ke::Graphics::Renderer::getInstance().pickTextureIndex(-1);
+    
     VkBuffer vertexBuffers[] = {mVertexBuffer.buffer};
     VkDeviceSize offsets[] = {0};
 
@@ -159,3 +163,4 @@ ke::gui::SceneComponent &ke::gui::SceneComponent::operator=(SceneComponent &&oth
 
     return *this;
 }
+    

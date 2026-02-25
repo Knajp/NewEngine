@@ -42,7 +42,7 @@ project "NewEngine"
     targetdir "bin/%{cfg.buildcfg}"
 
     files { "**.h", "**.c", "**.cpp", "**.hpp" }
-    defines {"GLFW_INCLUDE_VULKAN"}
+    defines {"GLFW_INCLUDE_VULKAN", "STB_IMAGE_IMPLEMENTATION"}
 
     filter "configurations:Debug"
         defines { "DEBUG" }

@@ -1,17 +1,8 @@
 #include "SceneManager.hpp"
-
-void ke::SceneManager::drawDemo(VkCommandBuffer buffer)
-{
-    VkBuffer buffers[] = {vertexBuffer.buffer};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(buffer, 0, 1, buffers, offsets);
-    vkCmdDraw(buffer, 3, 1, 0, 0);
-}
+#include "./Graphics/Texture.hpp"
 
 void ke::SceneManager::init(glm::ivec2 pos, glm::ivec2 extent, int windowHeight)
 {
-    vertexBuffer = util::Buffer(Graphics::Renderer::getInstance().getDevice());
-    Graphics::Renderer::getInstance().createVertexBuffer(vertices, vertexBuffer.buffer, vertexBuffer.bufferMemory);
 
     mSceneViewport.height = extent.y;
     mSceneViewport.width = extent.x;
@@ -24,6 +15,14 @@ void ke::SceneManager::init(glm::ivec2 pos, glm::ivec2 extent, int windowHeight)
     mSceneScissor.offset = {pos.x, windowHeight - (pos.y + extent.y)};
 }
 
+void ke::SceneManager::drawScene() const
+{
+    for(const auto& object : mSceneObjects)
+    {
+        object->Draw();
+    }
+}
+
 float ke::SceneManager::getSceneAspectRatio() const
 {
     return mSceneViewport.width / mSceneViewport.height;
@@ -31,7 +30,7 @@ float ke::SceneManager::getSceneAspectRatio() const
 
 void ke::SceneManager::terminate()
 {
-    vertexBuffer.destroy();
+   mSceneObjects.clear();
 }
 
 const VkViewport &ke::SceneManager::getViewport() const
@@ -43,3 +42,30 @@ const VkRect2D &ke::SceneManager::getScissor() const
 {
     return mSceneScissor;
 }
+
+void ke::SceneManager::addObjectToScene(std::unique_ptr<SceneObject> object)
+{
+    mSceneObjects.push_back(std::move(object));
+}
+
+void ke::SceneObject::Draw() const
+{
+    ke::Graphics::Renderer& renderer = ke::Graphics::Renderer::getInstance();
+
+    renderer.pickTextureIndex(mTextureIndex);
+    
+    renderer.drawBuffersIndexed(mMesh.vertexBuffer, mMesh.indexBuffer, mMesh.mIndices.size());
+}
+
+void ke::SceneObject::setTexture(std::string textureName)
+{
+    ke::Graphics::Texture::TextureManager& textureManager = ke::Graphics::Texture::TextureManager::getInstance();
+
+    mTextureIndex = textureManager.getTextureIndex(textureName);
+}
+
+void ke::SceneObject::loadMesh(util::Mesh &mesh)
+{
+    mMesh = std::move(mesh);
+}
+

@@ -33,12 +33,19 @@ namespace ke
             void updateSceneUniforms(float aspectRatio);
             void finishDraw(GLFWwindow* window);
 
+            void createTextureImage(const std::string& filepath, util::Image& image);
+            void createTextureImageView(util::Image& image);
+            uint32_t addTextureToDescriptor(const util::Image& image);
+
             void signalWindowResize();
-            void createVertexBuffer(const std::vector<util::str::Vertex2P3C>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+            void createVertexBuffer(const std::vector<util::str::Vertex2P3C2T>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
             void createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
 
             void bindUIPipeline(VkCommandBuffer buffer);
             void bindScenePipeline(VkCommandBuffer buffer, const VkViewport& viewport, const VkRect2D& scissor);
+
+            void pickTextureIndex(int32_t index) const;
+            void drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint16_t indexCount) const;
 
             VkDevice getDevice() const;
 
@@ -75,7 +82,16 @@ namespace ke
             void beginRecording(VkCommandBuffer buffer);
             void endRecording(VkCommandBuffer buffer);
 
+            void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout, uint32_t mipLevel);
+            void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+            VkCommandBuffer beginSingleTimeCommands();
+            void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
             void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory );
+            void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& memory);
+            VkImageView createImageView(VkImage image, VkFormat format, uint32_t mipLevels);
+            void generateMipmaps(VkImage image, VkFormat format, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
             uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
@@ -86,6 +102,9 @@ namespace ke
             void createDescriptorPool();
             void createDescriptorSets();
 
+
+            void createTextureSampler();
+            
             //DEBUG
             bool checkValidationLayerSupport();
             void setupDebugMessenger();
@@ -128,6 +147,7 @@ namespace ke
             std::vector<VkFence> mImagesInFlight;
 
             VkDescriptorSetLayout mDescriptorSetLayout;
+            VkDescriptorSetLayout mTextureSetLayout;
 
             std::vector<VkBuffer> uniformBuffers;
             std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -140,9 +160,16 @@ namespace ke
             VkDescriptorPool mDescriptorPool;
             std::vector<VkDescriptorSet> mUIDescriptorSets;
             std::vector<VkDescriptorSet> mSceneDescriptorSets;
+            VkDescriptorSet mTextureDescriptorSet;
 
+
+            bool  USE_BINDLESS_TXT = false;
+            uint32_t MAX_TEXTURES = 0;
+            uint32_t mMipLevels;
             //DEBUG
             VkDebugUtilsMessengerEXT mDebugMessenger;
+
+            VkSampler mTextureSampler;
 
             const int MAXFRAMESINFLIGHT = 2;
             uint32_t currentFrameInFlight = 0;

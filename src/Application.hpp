@@ -2,6 +2,7 @@
 #include "Graphics/Renderer.hpp"
 #include "InterfaceManager.hpp"
 #include "SceneManager.hpp"
+#include "Graphics/Texture.hpp"
 #include <memory>
 
 namespace ke
@@ -21,6 +22,7 @@ namespace ke
 			Graphics::Renderer& mRenderer = Graphics::Renderer::getInstance();
 			gui::UImanager& mUIManager = gui::UImanager::getInstance();
 			SceneManager& mSceneManager = SceneManager::getInstance();
+			Graphics::Texture::TextureManager& mTextureManager = Graphics::Texture::TextureManager::getInstance();
 			
 			util::Logger mLogger = util::Logger("Main Application Logger");
 

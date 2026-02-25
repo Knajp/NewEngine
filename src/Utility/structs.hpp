@@ -10,24 +10,30 @@ namespace ke
     {
         namespace str
         {
-            struct Vertex2P3C
+            struct Vertex2P3C2T
             {
                 glm::vec2 pos;
                 glm::vec3 col;
+                glm::vec2 uv;
 
-                static std::array<VkVertexInputAttributeDescription, 2> getInputAttributeDescriptions()
+                static std::array<VkVertexInputAttributeDescription, 3> getInputAttributeDescriptions()
                 {
-                    std::array<VkVertexInputAttributeDescription, 2> descs;
+                    std::array<VkVertexInputAttributeDescription, 3> descs;
                     
                     descs[0].binding = 0;
                     descs[0].location = 0;
                     descs[0].format = VK_FORMAT_R32G32_SFLOAT;
-                    descs[0].offset = offsetof(Vertex2P3C, pos);
+                    descs[0].offset = offsetof(Vertex2P3C2T, pos);
 
                     descs[1].binding = 0;
                     descs[1].location = 1;
                     descs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-                    descs[1].offset = offsetof(Vertex2P3C, col);
+                    descs[1].offset = offsetof(Vertex2P3C2T, col);
+
+                    descs[2].binding = 0;
+                    descs[2].location = 2;
+                    descs[2].format = VK_FORMAT_R32G32_SFLOAT;
+                    descs[2].offset = offsetof(Vertex2P3C2T, uv);
 
                     return descs;
                 }
@@ -37,7 +43,7 @@ namespace ke
                     VkVertexInputBindingDescription desc{};
                     desc.binding = 0;
                     desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-                    desc.stride = sizeof(Vertex2P3C);
+                    desc.stride = sizeof(Vertex2P3C2T);
 
                     return desc;
                 }

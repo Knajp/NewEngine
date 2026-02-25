@@ -30,6 +30,10 @@ void ke::Core::Application::init()
     mUIManager.loadComponents(mWindow->getWindowHandle());
     mLogger.info("Finished loading UI manager.");
 
+    mLogger.trace("Requesting Texture manager init.");
+    mTextureManager.init();
+    mLogger.info("Finished loading texture manager.");
+    
     int width, height;
     glfwGetFramebufferSize(mWindow->getWindowHandle(), &width, &height);
     mSceneManager.init(mUIManager.getSceneComponentPosition(), mUIManager.getSceneComponentExtent(), height);
@@ -41,6 +45,24 @@ void ke::Core::Application::run()
 {
     mLogger.trace("Proceeding to main loop.");
 
+    util::Mesh mesh(
+    {
+        {{-0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+        {{0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}
+    },
+    {
+        3, 2, 0,
+        3, 0, 1
+    }
+    );
+    SceneObject object;
+    object.loadMesh(mesh);
+    object.setTexture("flower");
+
+    mSceneManager.addObjectToScene(std::make_unique<SceneObject>(std::move(object)));
+    
     while (!mWindow->shouldClose())
     {
 
@@ -57,7 +79,7 @@ void ke::Core::Application::run()
 
         mRenderer.bindScenePipeline(cb, mSceneManager.getViewport(), mSceneManager.getScissor());
 
-        mSceneManager.drawDemo(cb);
+        mSceneManager.drawScene();
 
         mRenderer.finishDraw(mWindow->getWindowHandle());
         Graphics::Window::pollEvents();
@@ -78,6 +100,10 @@ void ke::Core::Application::terminate()
     mUIManager.unloadComponents();
     mLogger.info("Finished unloading ui");
 
+    mLogger.info("Requesting texture termination.");
+    mTextureManager.terminate();
+    mLogger.info("Finished unloading textures.");
+    
     mLogger.trace("Requesting renderer termination.");
     mRenderer.terminate();
     mLogger.trace("Finished terminating renderer.");

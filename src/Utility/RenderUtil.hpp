@@ -58,6 +58,74 @@ namespace ke
             glm::mat4 proj;
         };
 
+        struct Image
+        {
+            VkImage image;
+            VkImageView imageView;
+            VkDeviceMemory imageMemory;
+
+            VkDevice device;
+
+            Image() = default;
+            void setDevice(VkDevice _device)
+            {
+                device = _device;
+            }
+
+            void destroy()
+            {
+                if(image == VK_NULL_HANDLE || imageView == VK_NULL_HANDLE || imageMemory == VK_NULL_HANDLE) return;
+
+                assert(device != VK_NULL_HANDLE);
+
+                vkDeviceWaitIdle(device);
+
+                vkDestroyImageView(device, imageView, nullptr);
+                vkDestroyImage(device, image, nullptr);
+                vkFreeMemory(device, imageMemory, nullptr);
+
+                device = VK_NULL_HANDLE;
+                image = VK_NULL_HANDLE;
+                imageView = VK_NULL_HANDLE;
+                imageMemory = VK_NULL_HANDLE;
+            }
+            ~Image()
+            {
+                destroy();
+            }
+
+            Image(Image&& other)
+                :image(std::exchange(other.image, VK_NULL_HANDLE)),
+                 imageView(std::exchange(other.imageView, VK_NULL_HANDLE)),
+                 imageMemory(std::exchange(other.imageMemory, VK_NULL_HANDLE)),
+                 device(other.device){}
+
+            Image& operator=(Image&& other)
+            {
+                if(this == &other) return *this;
+                
+                if(image != VK_NULL_HANDLE && device != VK_NULL_HANDLE)
+                {
+                    destroy();
+                }   
+
+                image = VK_NULL_HANDLE;
+                imageView = VK_NULL_HANDLE;
+                imageMemory = VK_NULL_HANDLE;
+
+                image = std::exchange(other.image, VK_NULL_HANDLE);
+                imageView = std::exchange(other.imageView, VK_NULL_HANDLE);
+                imageMemory = std::exchange(other.imageMemory, VK_NULL_HANDLE);
+                device = other.device;
+
+                return *this;
+            }
+                
+            Image(const Image& other) = delete;
+            Image& operator=(const Image& other) = delete;
+        };
+        
+ 
         struct Buffer
         {
             VkBuffer buffer = VK_NULL_HANDLE;
@@ -115,7 +183,14 @@ namespace ke
             }
 
             Buffer(const Buffer& other) = delete;
-            Buffer operator=(const Buffer& other) = delete;
+            Buffer& operator=(const Buffer& other) = delete;
+
+            void setDevice(VkDevice _device)
+            {
+                device = _device;
+            }
         };
+
+
     }
 }
