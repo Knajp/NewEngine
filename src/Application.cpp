@@ -20,6 +20,7 @@ void ke::Core::Application::init()
     mMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* videoMode = glfwGetVideoMode(mMonitor);
     mWindow = std::make_unique<Graphics::Window>(videoMode->width, videoMode->height, "Knajp's Engine");
+    mWindow->setApplicationEventCallback(onEvent);
     mLogger.info("Created window.");
 
     mLogger.trace("Requesting renderer init.");
@@ -34,6 +35,10 @@ void ke::Core::Application::init()
     mTextureManager.init();
     mLogger.info("Finished loading texture manager.");
     
+    mLogger.trace("Requesting Audio Manager init.");
+    mAudioManager.init();
+    mLogger.info("Finished loading audio manager.");
+
     int width, height;
     glfwGetFramebufferSize(mWindow->getWindowHandle(), &width, &height);
     mSceneManager.init(mUIManager.getSceneComponentPosition(), mUIManager.getSceneComponentExtent(), height);
@@ -63,6 +68,9 @@ void ke::Core::Application::run()
 
     mSceneManager.addObjectToScene(std::make_unique<SceneObject>(std::move(object)));
     
+    uint16_t musicIndex = mAudioManager.createAudio("src/Sounds/music.mp3", AL_TRUE, 1.0f, 1.0f, "music");
+    mAudioManager.PlayAudio(musicIndex);
+
     while (!mWindow->shouldClose())
     {
 
@@ -85,6 +93,7 @@ void ke::Core::Application::run()
         Graphics::Window::pollEvents();
     }
     
+    mAudioManager.StopAudio(musicIndex);
     mLogger.info("Exit main loop.");
 }
 
@@ -103,7 +112,11 @@ void ke::Core::Application::terminate()
     mLogger.info("Requesting texture termination.");
     mTextureManager.terminate();
     mLogger.info("Finished unloading textures.");
-    
+
+    mLogger.info("Requesting audio termination.");
+    mAudioManager.terminate();
+    mLogger.info("Finished unloading audio.");
+     
     mLogger.trace("Requesting renderer termination.");
     mRenderer.terminate();
     mLogger.trace("Finished terminating renderer.");
@@ -113,3 +126,27 @@ void ke::Core::Application::terminate()
     
     mLogger.info("Goodbye.");
 }
+
+
+void ke::Core::Application::onEvent(Events::Event &ev)
+{
+    ke::Events::EventDispatcher dispatcher(ev);
+
+    dispatcher.Dispatch<Events::KeyPressedEvent>([](Events::KeyPressedEvent& e)
+    {
+        Application& app = Application::getInstance();
+
+        std::cout << "KEY PRESSED, keycode: " << e.getKeyCode() << "\n";
+
+        if(e.getKeyCode() == GLFW_KEY_Q && app.mWindow->isKeyPressed(GLFW_KEY_LEFT_CONTROL)) // LCTRL + Q = QUIT
+            app.mWindow->quit();
+        
+        return true;
+    });
+    dispatcher.Dispatch<Events::KeyReleasedEvent>([](Events::KeyReleasedEvent& e)
+    {
+        std::cout << "KEY RELEASED, keycode: " << e.getKeyCode() << "\n";
+        return true;
+    });
+}
+

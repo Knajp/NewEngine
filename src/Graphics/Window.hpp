@@ -1,6 +1,9 @@
 #include<iostream>
 #include <GLFW/glfw3.h>
+#include <functional>
+
 #include "../Utility/Logger.hpp"
+#include "../Events/event_pch.hpp"
 
 namespace ke
 {
@@ -21,13 +24,20 @@ namespace ke
 			static void pollEvents();
 
 			bool shouldClose() const;
+			void quit();
+
+			void setApplicationEventCallback(void(*func_ptr)(Events::Event& e));
 
 			float getAspectRatio() const;
 			void calculateAspectRatio();
+
+			void event(Events::Event&);
+			bool isKeyPressed(int key) const;
 		private:
 			GLFWwindow* pWindow;
 
 			float aspectRatio;
+			std::function<void(Events::Event&)> mEventCallback;
 		};
 	}
 }

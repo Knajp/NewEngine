@@ -26,7 +26,8 @@ workspace "NewEngine"
         "X11",
         "Xxf86vm",
         "Xrandr",
-        "Xi"
+        "Xi",
+        "openal"
         }
         
     filter {}
@@ -43,6 +44,11 @@ project "NewEngine"
 
     files { "**.h", "**.c", "**.cpp", "**.hpp" }
     defines {"GLFW_INCLUDE_VULKAN", "STB_IMAGE_IMPLEMENTATION"}
+
+    filter "system:linux"
+        libdirs { "./vendor/lib", "/usr/local/lib" }
+        links { "glfw3", "vulkan", "pugixml", "dl", "pthread", "X11", "Xxf86vm", "Xrandr", "Xi", "openal" }
+    filter {}
 
     filter "configurations:Debug"
         defines { "DEBUG" }

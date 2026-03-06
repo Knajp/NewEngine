@@ -3,6 +3,8 @@
 #include "InterfaceManager.hpp"
 #include "SceneManager.hpp"
 #include "Graphics/Texture.hpp"
+#include "Audio/AudioManager.hpp"
+#include "Events/event_pch.hpp"
 #include <memory>
 
 namespace ke
@@ -23,6 +25,7 @@ namespace ke
 			gui::UImanager& mUIManager = gui::UImanager::getInstance();
 			SceneManager& mSceneManager = SceneManager::getInstance();
 			Graphics::Texture::TextureManager& mTextureManager = Graphics::Texture::TextureManager::getInstance();
+			Audio::AudioManager& mAudioManager = Audio::AudioManager::getInstance();
 			
 			util::Logger mLogger = util::Logger("Main Application Logger");
 
@@ -31,6 +34,8 @@ namespace ke
 			void init();
 			void run();
 			void terminate();
+
+			static void onEvent(Events::Event& ev);
 		};
 	}
 }
