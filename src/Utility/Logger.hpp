@@ -23,6 +23,7 @@ namespace ke
             void critical(const char* msg) const;
         private:
             std::shared_ptr<spdlog::logger> mLogger;
+            static std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> sSharedSink;
         };
     }
 }

@@ -15,6 +15,7 @@ void ke::Core::Application::Run()
 
 void ke::Core::Application::init()
 {
+    mLogger.initLoggers();
     Graphics::Window::initGLFW();
     mLogger.info("Initialized GLFW.");
     mMonitor = glfwGetPrimaryMonitor();
@@ -23,6 +24,10 @@ void ke::Core::Application::init()
     mWindow->setApplicationEventCallback(onEvent);
     mLogger.info("Created window.");
 
+    std::future<void> audioFuture = std::async(std::launch::async, [this]()
+    {
+        mAudioManager.init();
+    });
     mLogger.trace("Requesting renderer init.");
     mRenderer.init(mWindow->getWindowHandle());
     mLogger.trace("Finished initializing renderer.");
@@ -35,9 +40,7 @@ void ke::Core::Application::init()
     mTextureManager.init();
     mLogger.info("Finished loading texture manager.");
     
-    mLogger.trace("Requesting Audio Manager init.");
-    mAudioManager.init();
-    mLogger.info("Finished loading audio manager.");
+    audioFuture.get();
 
     int width, height;
     glfwGetFramebufferSize(mWindow->getWindowHandle(), &width, &height);
@@ -146,6 +149,21 @@ void ke::Core::Application::onEvent(Events::Event &ev)
     dispatcher.Dispatch<Events::KeyReleasedEvent>([](Events::KeyReleasedEvent& e)
     {
         std::cout << "KEY RELEASED, keycode: " << e.getKeyCode() << "\n";
+        return true;
+    });
+    dispatcher.Dispatch<Events::WindowResizedEvent>([](Events::WindowResizedEvent& e)
+    {
+        Application& app = Application::getInstance();
+
+        std::cout << "WINDOW RESIZED, width: " << e.getWidth() << ", height: " << e.getHeight() << "\n";
+        app.mRenderer.signalWindowResize();
+
+        app.mUIManager.recreateSceneComponent(app.mWindow->getWindowHandle());
+
+        int x,y;
+        glfwGetFramebufferSize(app.mWindow->getWindowHandle(), &x, &y);
+        app.mSceneManager.recreateViewport(app.mUIManager.getSceneComponentPosition(), app.mUIManager.getSceneComponentExtent(), y);
+        
         return true;
     });
 }

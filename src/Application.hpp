@@ -6,6 +6,7 @@
 #include "Audio/AudioManager.hpp"
 #include "Events/event_pch.hpp"
 #include <memory>
+#include <future>
 
 namespace ke
 {

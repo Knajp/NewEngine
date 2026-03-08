@@ -1,9 +1,10 @@
 #include "Logger.hpp"
 
+std::shared_ptr<spdlog::sinks::stdout_color_sink_mt> ke::util::Logger::sSharedSink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+
 ke::util::Logger::Logger(const char *name)
 {
-    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    mLogger = std::make_shared<spdlog::logger>(name, console_sink);
+    mLogger = std::make_shared<spdlog::logger>(name, sSharedSink);
 }
 
 void ke::util::Logger::initLoggers()

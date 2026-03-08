@@ -22,7 +22,11 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
-	ke::Graphics::Renderer::getInstance().signalWindowResize();
+	auto& self = *(ke::Graphics::Window*)glfwGetWindowUserPointer(window);
+
+	ke::Events::WindowResizedEvent event{width, height};
+
+	self.event(event);
 }
 
 static void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)

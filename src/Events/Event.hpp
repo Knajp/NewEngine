@@ -18,7 +18,8 @@ namespace ke
             None = 0,
             KeyPressedEvent, KeyReleasedEvent,
             WindowResizedEvent, WindowClosedEvent,
-            MousePressedEvent, MouseReleasedEvent, MouseMovedEvent
+            MousePressedEvent, MouseReleasedEvent, MouseMovedEvent,
+            WindowFramebufferResizedEvent
         };
 
         enum class EventCategory

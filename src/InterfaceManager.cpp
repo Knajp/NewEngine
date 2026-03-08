@@ -106,7 +106,10 @@ void ke::gui::UImanager::loadComponents(GLFWwindow* window)
             if(direntry.path().filename().string() != "scene.xml")
                 mComponents.emplace_back(direntry.path().string());
             else
-                mSceneComponent = SceneComponent(direntry.path().string(), window);
+            {
+                sceneComponentFilepath = direntry.path().string();
+                mSceneComponent = SceneComponent(sceneComponentFilepath, window);
+            }
                 
         }
     }catch(std::filesystem::filesystem_error const& err)
@@ -126,6 +129,11 @@ void ke::gui::UImanager::unloadComponents()
 {
     vkDeviceWaitIdle(Graphics::Renderer::getInstance().getDevice());
     mComponents.clear();
+}
+
+void ke::gui::UImanager::recreateSceneComponent(GLFWwindow *window)
+{
+    mSceneComponent = SceneComponent(sceneComponentFilepath, window);
 }
 
 glm::ivec2 ke::gui::UImanager::getSceneComponentPosition() const

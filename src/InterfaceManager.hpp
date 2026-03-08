@@ -60,6 +60,8 @@ namespace ke
             void drawComponents(VkCommandBuffer commandBuffer);
             void unloadComponents();
 
+            void recreateSceneComponent(GLFWwindow* window);
+
             glm::ivec2 getSceneComponentPosition() const;
             glm::ivec2 getSceneComponentExtent() const;
         private:
@@ -67,6 +69,8 @@ namespace ke
 
             std::vector<Component> mComponents;
             SceneComponent mSceneComponent;
+
+            std::string sceneComponentFilepath;
         };
     }
 }

@@ -4,5 +4,5 @@
 #include "Event.hpp"
 #include "KeyboardEvent.hpp"
 #include "MouseEvent.hpp"
-
+#include "WindowEvent.hpp"
 #endif

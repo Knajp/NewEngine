@@ -103,6 +103,7 @@ namespace ke
         void drawScene() const;
 
         float getSceneAspectRatio() const;
+        void recreateViewport(glm::ivec2 pos, glm::ivec2 extent, int windowHeight);
 
         void terminate();
 
