@@ -163,7 +163,21 @@ void ke::Core::Application::onEvent(Events::Event &ev)
         int x,y;
         glfwGetFramebufferSize(app.mWindow->getWindowHandle(), &x, &y);
         app.mSceneManager.recreateViewport(app.mUIManager.getSceneComponentPosition(), app.mUIManager.getSceneComponentExtent(), y);
-        
+
+        return true;
+    });
+    dispatcher.Dispatch<Events::MouseButtonPressedEvent>([](Events::MouseButtonPressedEvent& e)
+    {
+        Application& app = Application::getInstance();
+
+        GLFWwindow* window = app.mWindow->getWindowHandle();
+
+        int wx, wy;
+        glfwGetFramebufferSize(window, &wx, &wy);
+
+        if(e.getButton() == GLFW_MOUSE_BUTTON_LEFT)
+            app.mUIManager.processMouseClick(e.getMouseX(), e.getMouseY(), wx, wy);
+
         return true;
     });
 }

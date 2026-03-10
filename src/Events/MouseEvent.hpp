@@ -33,6 +33,7 @@ namespace ke
             EVENT_CATEGORY(MouseEvent)
             EVENT_TYPE(MousePressedEvent)
 
+            int getButton() {return mMouseButton;} 
         private:
             int mMouseButton;
         };
@@ -46,6 +47,7 @@ namespace ke
             EVENT_TYPE(MouseReleasedEvent)
             EVENT_CATEGORY(MouseEvent)
 
+            int getButton() {return mMouseButton;}
         private:
             int mMouseButton;
         };

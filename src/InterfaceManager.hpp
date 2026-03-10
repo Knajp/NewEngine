@@ -5,6 +5,8 @@
 #include <GLFW/glfw3.h>
 #include <filesystem>
 #include <vector>
+#include <memory>
+
 namespace ke
 {
     namespace gui
@@ -18,12 +20,16 @@ namespace ke
             Component(std::string filepath);
             ~Component();
 
+            bool pollButtonClick(int mouseX, int mouseY, int windowX, int windowY);
+
             Component(Component&& other) noexcept;
             ke::gui::Component& operator=(Component&& other) noexcept;
             
             void Draw(VkCommandBuffer commandBuffer);
         private:
-            std::vector<GUIObject> mFrames;
+            std::vector<std::unique_ptr<gui::Element>> mFrames;
+            std::vector<gui::Button> mButtons;
+
             util::Buffer mVertexBuffer;
             util::Buffer mIndexBuffer;
 
@@ -64,6 +70,8 @@ namespace ke
 
             glm::ivec2 getSceneComponentPosition() const;
             glm::ivec2 getSceneComponentExtent() const;
+
+            void processMouseClick(int mouseX, int mouseY, int windowX, int windowY);
         private:
             UImanager() = default;
 

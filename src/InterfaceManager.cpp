@@ -6,31 +6,29 @@ ke::gui::Component::Component(std::string filepath)
 {
     static util::XML parser = util::XML::getInstance();
 
-    parser.parseFile(filepath, mFrames);
+    parser.parseFile(filepath, mFrames, mButtons);
     
     int indexAdvance = 0;
-    for(ke::GUIObject obj : mFrames)
+    for(const auto& obj : mFrames)
     {
-        gui::Frame frame = std::get<gui::Frame>(obj);
-
-        float x = frame.x;
+        float x = obj->x;
         x *= 2.0f;
         x -= 1.0f;
 
-        float y = frame.y;
+        float y = obj->y;
         y *= 2.0f;
         y -= 1.0f;
 
-        float w = frame.w;
+        float w = obj->w;
         w *= 2.0f;
 
-        float h = frame.h;
+        float h = obj->h;
         h *= 2.0f;
 
-        mVertices.push_back({{x, y + h}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
-        mVertices.push_back({{x, y}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
-        mVertices.push_back({{x + w, y}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
-        mVertices.push_back({{x + w, y + h}, {frame.color.r, frame.color.g, frame.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x, y + h}, {obj->color.r, obj->color.g, obj->color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x, y}, {obj->color.r, obj->color.g, obj->color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x + w, y}, {obj->color.r, obj->color.g, obj->color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x + w, y + h}, {obj->color.r, obj->color.g, obj->color.b}, {0.0f, 0.0f}});
 
         mIndices.push_back(0 + indexAdvance);
         mIndices.push_back(1 + indexAdvance);
@@ -42,6 +40,40 @@ ke::gui::Component::Component(std::string filepath)
 
         indexAdvance += 4;
     }
+
+ 
+    for(const auto& obj : mButtons)
+    {
+        float x = obj.x;
+        x *= 2.0f;
+        x -= 1.0f;
+
+        float y = obj.y;
+        y *= 2.0f;
+        y -= 1.0f;
+
+        float w = obj.w;
+        w *= 2.0f;
+
+        float h = obj.h;
+        h *= 2.0f;
+
+        mVertices.push_back({{x, y + h}, {obj.color.r, obj.color.g, obj.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x, y}, {obj.color.r, obj.color.g, obj.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x + w, y}, {obj.color.r, obj.color.g, obj.color.b}, {0.0f, 0.0f}});
+        mVertices.push_back({{x + w, y + h}, {obj.color.r, obj.color.g, obj.color.b}, {0.0f, 0.0f}});
+
+        mIndices.push_back(0 + indexAdvance);
+        mIndices.push_back(1 + indexAdvance);
+        mIndices.push_back(2 + indexAdvance);
+        mIndices.push_back(0 + indexAdvance);
+        mIndices.push_back(2 + indexAdvance);
+        mIndices.push_back(3 + indexAdvance);
+
+
+        indexAdvance += 4;
+    }
+
 
     VkDeviceSize verticesSize = sizeof(mVertices[0]) * mVertices.size();
     VkDeviceSize indicesSize = sizeof(mIndices[0]) * mIndices.size();
@@ -57,9 +89,27 @@ ke::gui::Component::~Component()
 {
 }
 
+bool isBetween(int point, int bLimit, int tLimit)
+{
+    return point > bLimit && point < tLimit;
+}
+bool ke::gui::Component::pollButtonClick(int mouseX, int mouseY, int windowX, int windowY) 
+{
+    for(auto& button : mButtons)
+    {
+        if(isBetween(mouseX, windowX * button.x, windowX * button.x + windowX * button.w) && isBetween(windowY - mouseY, windowY * button.y, windowY * button.y + windowY * button.h))
+        {
+            button.onClick();
+            return true;
+        }
+    }
+    return false;
+}
+
 ke::gui::Component::Component(Component&& other) noexcept
     : mFrames(std::move(other.mFrames)),
-      mIndexBuffer(std::move(other.mIndexBuffer)),
+      mButtons(std::move(other.mButtons)),
+      mIndexBuffer(std::move(other.mIndexBuffer)), 
       mVertexBuffer(std::move(other.mVertexBuffer)),
       mIndices(std::move(other.mIndices)),
       mVertices(std::move(other.mVertices))
@@ -71,6 +121,7 @@ ke::gui::Component& ke::gui::Component::operator=(Component&& other) noexcept
     if (this != &other)
     {
         mFrames = std::move(other.mFrames);
+        mButtons = std::move(other.mButtons);
         mIndexBuffer = std::move(other.mIndexBuffer);
         mVertexBuffer = std::move(other.mVertexBuffer);
         mIndices = std::move(other.mIndices);
@@ -144,6 +195,14 @@ glm::ivec2 ke::gui::UImanager::getSceneComponentPosition() const
 glm::ivec2 ke::gui::UImanager::getSceneComponentExtent() const
 {
     return mSceneComponent.extent;
+}
+
+void ke::gui::UImanager::processMouseClick(int mouseX, int mouseY, int windowX, int windowY)
+{
+    for(auto& component : mComponents)
+    {
+        component.pollButtonClick(mouseX, mouseY, windowX, windowY);
+    }
 }
 
 ke::gui::SceneComponent::SceneComponent(std::string filepath, GLFWwindow* window)

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <KEUIcomponent name="navbar" x="0" y="97" w="100" h="3">
-    <Frame x="0" y="0" w="100" h="100" color="#152e33"></Frame>
+    <Frame x="0" y="0" w="100" h="100" color="#152e33">
+       
+    </Frame>
+    <Button x="10" y="0" w="5" h="100" color="#ff0000" id="addelement">
+
+    </Button>
 </KEUIcomponent>
