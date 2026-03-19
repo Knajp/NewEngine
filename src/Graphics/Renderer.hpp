@@ -15,6 +15,7 @@
 #include "../Utility/Logger.hpp"
 #include "../Utility/RenderUtil.hpp"
 #include "../Utility/structs.hpp"
+#include "TextUtilities.hpp"
 
 namespace ke
 {
@@ -31,22 +32,34 @@ namespace ke
             void readyCanvas(GLFWwindow* window);
             void updateUIUniforms(float aspectRatio);
             void updateSceneUniforms(float aspectRatio);
+            void updateFontUniforms();
+
             void finishDraw(GLFWwindow* window);
 
             void createTextureImage(const std::string& filepath, util::Image& image);
             void createTextureImageView(util::Image& image);
             uint32_t addTextureToDescriptor(const util::Image& image);
 
+            void createFontImage(const std::unordered_map<uint32_t, ke::Graphics::Text::GlyphInfo>& glyphs, const unsigned int ATLAS_SIZE, VkImage& fontImage, VkDeviceMemory& fontImageMemory);
+            void createFontImageView(util::Image& image);
+            uint32_t addFontToDescriptor(const util::Image& image);
+
             void signalWindowResize();
             void createVertexBuffer(const std::vector<util::str::Vertex2P3C2T>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
             void createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+            void createGlyphInstanceBuffer(const std::vector<Text::GlyphInstance>& instances, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+
+            void endRenderPass();
 
             void bindUIPipeline(VkCommandBuffer buffer);
             void bindScenePipeline(VkCommandBuffer buffer, const VkViewport& viewport, const VkRect2D& scissor);
+            void bindFontPipeline(VkCommandBuffer buffer);
 
             void pickTextureIndex(int32_t index) const;
+            void pickFontIndex(int32_t index) const;
             void drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint16_t indexCount) const;
-
+            void drawText(const util::Buffer& instanceBuffer, uint32_t instanceCount) const;
+            
             VkDevice getDevice() const;
 
             VkCommandBuffer getCurrentCommandBuffer();
@@ -71,8 +84,10 @@ namespace ke
             void cleanupSwapchain();
 
             void createGraphicsPipeline();
+            void createFontPipeline();
             VkShaderModule createShaderModule(const std::vector<char>& code);
             void createRenderPass();
+            void createFontRenderPass();
 
             void createFramebuffers();
             void createCommandPool();
@@ -82,7 +97,7 @@ namespace ke
             void beginRecording(VkCommandBuffer buffer);
             void endRecording(VkCommandBuffer buffer);
 
-            void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout, uint32_t mipLevel);
+            void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout, uint32_t mipLevel, VkCommandBuffer targetCommandBuffer = VK_NULL_HANDLE);
             void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
             VkCommandBuffer beginSingleTimeCommands();
@@ -104,7 +119,8 @@ namespace ke
 
 
             void createTextureSampler();
-            
+            void createFontSampler();
+
             //DEBUG
             bool checkValidationLayerSupport();
             void setupDebugMessenger();
@@ -131,10 +147,16 @@ namespace ke
             std::vector<VkImageView> mSwapchainImageViews;
 
             VkPipelineLayout mPipelineLayout;
+            VkPipelineLayout mFontPipelineLayout;
+
             VkPipeline mPipeline;
+            VkPipeline mFontPipeline;
+
             VkRenderPass mRenderPass;
+            VkRenderPass mFontRenderPass;
 
             VkPipeline mDisplayPipeline;
+            VkPipeline mDisplayFontPipeline;
 
             VkCommandPool mCommandPool;
             std::vector<VkCommandBuffer> mCommandBuffers;
@@ -148,6 +170,7 @@ namespace ke
 
             VkDescriptorSetLayout mDescriptorSetLayout;
             VkDescriptorSetLayout mTextureSetLayout;
+            VkDescriptorSetLayout mFontSetLayout;
 
             std::vector<VkBuffer> uniformBuffers;
             std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -157,11 +180,15 @@ namespace ke
             std::vector<VkDeviceMemory> sceneUniformBuffersMemory;
             std::vector<void*> sceneUniformBuffersMapped;
 
+            VkBuffer fontUniformBuffer;
+            VkDeviceMemory fontUniformBufferMemory;
+            void* fontUniformBufferMapped;
+
             VkDescriptorPool mDescriptorPool;
             std::vector<VkDescriptorSet> mUIDescriptorSets;
             std::vector<VkDescriptorSet> mSceneDescriptorSets;
             VkDescriptorSet mTextureDescriptorSet;
-
+            VkDescriptorSet mFontDescriptorSet;
 
             bool  USE_BINDLESS_TXT = false;
             uint32_t MAX_TEXTURES = 0;
@@ -170,6 +197,7 @@ namespace ke
             VkDebugUtilsMessengerEXT mDebugMessenger;
 
             VkSampler mTextureSampler;
+            VkSampler mFontSampler;
 
             const int MAXFRAMESINFLIGHT = 2;
             uint32_t currentFrameInFlight = 0;

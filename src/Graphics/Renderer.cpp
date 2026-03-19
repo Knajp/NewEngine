@@ -40,11 +40,14 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
     createSwapchain(window);
     createSwapchainImageViews();
     createRenderPass();
+    createFontRenderPass();
     createDescriptorSetLayout();
     createGraphicsPipeline();
+    createFontPipeline();
     createFramebuffers();
     createCommandPool();
     createTextureSampler();
+    createFontSampler();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -76,6 +79,7 @@ void ke::Graphics::Renderer::terminate()
 
     vkDestroyDescriptorSetLayout(mDevice, mTextureSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(mDevice, mFontSetLayout, nullptr);
 
     for(size_t i = 0; i < mSwapchainImages.size(); i++)
         vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
@@ -90,9 +94,13 @@ void ke::Graphics::Renderer::terminate()
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
     vkDestroyPipeline(mDevice, mDisplayPipeline, nullptr);
-    
+    vkDestroyPipeline(mDevice, mFontPipeline, nullptr);
+
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+    vkDestroyPipelineLayout(mDevice, mFontPipelineLayout, nullptr);
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
+    vkDestroyRenderPass(mDevice, mFontRenderPass, nullptr);
+
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     DestroyDebugUtilsMessenger(mInstance, mDebugMessenger, nullptr);
@@ -151,6 +159,16 @@ void ke::Graphics::Renderer::updateSceneUniforms(float aspectRatio)
     ubo.proj[1][1] *= -1;
 
     memcpy(sceneUniformBuffersMapped[currentFrameInFlight], &ubo, sizeof(ubo));
+}
+
+void ke::Graphics::Renderer::updateFontUniforms()
+{
+    if(!framebufferResized) return;
+
+    glm::vec2 extentVec = {mSwapchainExtent.width, mSwapchainExtent.height};
+
+    for(unsigned int i = 0; i < MAXFRAMESINFLIGHT; i++)
+        memcpy(fontUniformBufferMapped, &extentVec, sizeof(glm::vec2));
 }
 
 void ke::Graphics::Renderer::finishDraw(GLFWwindow *window)
@@ -251,6 +269,87 @@ uint32_t ke::Graphics::Renderer::addTextureToDescriptor(const util::Image &image
     write.dstArrayElement = rendererIndex;
     write.pImageInfo = &imageInfo;
 
+    vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+
+    return rendererIndex++;
+}
+
+void ke::Graphics::Renderer::createFontImage(const std::unordered_map<uint32_t, ke::Graphics::Text::GlyphInfo> &glyphs, const unsigned int ATLAS_SIZE, VkImage& fontImage, VkDeviceMemory& fontImageMemory)
+{
+    createImage(ATLAS_SIZE, ATLAS_SIZE, 1, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, fontImage, fontImageMemory);
+
+    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+    VkDeviceSize stagingBufferSize = ATLAS_SIZE * ATLAS_SIZE * 3;
+
+    util::Buffer stagingBuffer(mDevice);
+    createBuffer(stagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer.buffer, stagingBuffer.bufferMemory);
+
+    void* data;
+    vkMapMemory(mDevice, stagingBuffer.bufferMemory, 0, stagingBufferSize, 0, &data);
+    {
+        transitionImageLayout(fontImage, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer);
+        VkDeviceSize stagingOffset = 0;
+        for(auto& [codepoint, glyph] : glyphs)
+        {
+            printf("uploading cp=%u to atlasX=%u atlasY=%u stagingOffset=%llu\n", 
+           codepoint, glyph.atlasX, glyph.atlasY, stagingOffset);
+            std::vector<uint8_t> bytes(glyph.pixels.size());
+            for(size_t i = 0; i < glyph.pixels.size(); i++)
+                bytes[i] = (uint8_t)(glyph.pixels[i] * 255.0f);
+
+            memcpy((uint8_t*)data + stagingOffset, bytes.data(), bytes.size());
+
+            VkBufferImageCopy region{};
+            region.bufferOffset = stagingOffset;
+            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            region.imageSubresource.baseArrayLayer = 0;
+            region.imageSubresource.layerCount = 1;
+            region.imageSubresource.mipLevel = 0;
+            region.imageOffset.x = (int32_t)glyph.atlasX;
+            region.imageOffset.y = (int32_t)glyph.atlasY;
+            region.imageOffset.z = 0;
+            region.imageExtent.width = glyph.width;
+            region.imageExtent.height = glyph.height;
+            region.imageExtent.depth = 1;
+            
+            vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.buffer, fontImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+            stagingOffset += bytes.size();
+        }
+
+        transitionImageLayout(fontImage, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, commandBuffer);
+    }
+    vkUnmapMemory(mDevice, stagingBuffer.bufferMemory);
+
+
+
+    endSingleTimeCommands(commandBuffer);
+}
+
+void ke::Graphics::Renderer::createFontImageView(util::Image &image)
+{
+    image.imageView = createImageView(image.image, VK_FORMAT_R8G8B8_UNORM, 1);
+}
+
+uint32_t ke::Graphics::Renderer::addFontToDescriptor(const util::Image &image)
+{
+    static uint32_t rendererIndex = 0;
+
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = image.imageView;
+    imageInfo.sampler = mFontSampler;
+
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.descriptorCount = 1;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.dstArrayElement = rendererIndex;
+    write.dstBinding = 1;
+    write.dstSet = mFontDescriptorSet;
+    write.pImageInfo = &imageInfo;
+    
     vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
 
     return rendererIndex++;
@@ -810,6 +909,142 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     mLogger.info("Created graphics pipeline!");
 }
 
+void ke::Graphics::Renderer::createFontPipeline()
+{
+    auto vertexCode = ke::util::readFile("shader/bin/textvert.spv");
+    auto fragCode = ke::util::readFile("shader/bin/textfrag.spv");
+    
+    VkShaderModule vertexModule = createShaderModule(vertexCode);
+    VkShaderModule fragModule = createShaderModule(fragCode);
+
+    VkPipelineShaderStageCreateInfo vertexStageCreateInfo{};
+    vertexStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertexStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertexStageCreateInfo.module = vertexModule;
+    vertexStageCreateInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragmentStageCreateInfo{};
+    fragmentStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragmentStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragmentStageCreateInfo.module = fragModule;
+    fragmentStageCreateInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo stageInfos[] = {vertexStageCreateInfo, fragmentStageCreateInfo};
+
+    std::array<VkVertexInputAttributeDescription, 4> glyphInstanceAttributeDescriptions = Text::GlyphInstance::getInputAttributeDescriptions();
+    VkVertexInputBindingDescription glyphInstanceBindingDescription = Text::GlyphInstance::getInputBindingDescription();
+
+    VkPipelineVertexInputStateCreateInfo vertexInput{};
+    vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t> (glyphInstanceAttributeDescriptions.size());
+    vertexInput.vertexBindingDescriptionCount = 1;
+    vertexInput.pVertexAttributeDescriptions = glyphInstanceAttributeDescriptions.data();
+    vertexInput.pVertexBindingDescriptions = &glyphInstanceBindingDescription;
+
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)mSwapchainExtent.width;
+    viewport.height = (float)mSwapchainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.extent = mSwapchainExtent;
+    scissor.offset = {0,0};
+    
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.scissorCount = 1;
+    viewportState.viewportCount = 1;
+    viewportState.pScissors = &scissor;
+    viewportState.pViewports = &viewport;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineColorBlendAttachmentState colorAtt{};
+    colorAtt.blendEnable = VK_TRUE;
+    colorAtt.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorAtt.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    colorAtt.colorBlendOp = VK_BLEND_OP_ADD;
+    colorAtt.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+    colorAtt.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorAtt.alphaBlendOp = VK_BLEND_OP_ADD;
+    colorAtt.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorAtt;
+    colorBlending.logicOpEnable = VK_FALSE;
+
+    VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = 2;
+    dynamicState.pDynamicStates = dynamicStates;
+
+    VkDescriptorSetLayout setLayouts[] = {mFontSetLayout};
+
+    VkPushConstantRange pcRange{};
+    pcRange.offset = 0;
+    pcRange.size = sizeof(int);
+    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkPipelineLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutInfo.pushConstantRangeCount = 1;
+    layoutInfo.pPushConstantRanges = &pcRange;
+    layoutInfo.setLayoutCount = 1;
+    layoutInfo.pSetLayouts = setLayouts;
+
+    if(vkCreatePipelineLayout(mDevice, &layoutInfo, nullptr, &mFontPipelineLayout) != VK_SUCCESS)
+        mLogger.error("Failed to create font pipeline layout.");
+
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = stageInfos;
+    pipelineInfo.pVertexInputState = &vertexInput;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = mFontPipelineLayout;
+    pipelineInfo.renderPass = mFontRenderPass;
+    pipelineInfo.subpass = 0;
+
+    if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mFontPipeline) != VK_SUCCESS)
+        mLogger.error("Failed to create font pipeline.");
+    
+    
+    
+    vkDestroyShaderModule(mDevice, vertexModule, nullptr);
+    vkDestroyShaderModule(mDevice, fragModule, nullptr);
+}
+
 VkShaderModule ke::Graphics::Renderer::createShaderModule(const std::vector<char> &code)
 {
     VkShaderModuleCreateInfo createInfo{};
@@ -840,7 +1075,7 @@ void ke::Graphics::Renderer::createRenderPass()
     colorRef.attachment = 0;
     colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkSubpassDescription subpass{};
+    VkSubpassDescription subpass{}; 
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
@@ -867,6 +1102,48 @@ void ke::Graphics::Renderer::createRenderPass()
         mLogger.error("Failed to create render pass!");
 
     mLogger.info("Created render pass.");
+}
+
+void ke::Graphics::Renderer::createFontRenderPass()
+{
+    VkAttachmentDescription colorAtt{};
+    colorAtt.format = mSwapchainFormat;
+    colorAtt.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAtt.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    colorAtt.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAtt.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAtt.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference attRef{};
+    attRef.attachment = 0;
+    attRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &attRef;
+
+    VkSubpassDependency dep{};
+    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass = 0;
+    dep.srcAccessMask = 0;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+
+    VkRenderPassCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    createInfo.subpassCount = 1;
+    createInfo.pSubpasses = &subpass;
+    createInfo.attachmentCount = 1;
+    createInfo.pAttachments = &colorAtt;
+    createInfo.dependencyCount = 1;
+    createInfo.pDependencies = &dep;
+
+    if(vkCreateRenderPass(mDevice, &createInfo, nullptr, &mFontRenderPass) != VK_SUCCESS)
+        mLogger.error("Failed to create font render pass.");
+    
 }
 
 void ke::Graphics::Renderer::createFramebuffers()
@@ -992,15 +1269,14 @@ void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
 
 void ke::Graphics::Renderer::endRecording(VkCommandBuffer buffer)
 {
-    vkCmdEndRenderPass(buffer);
-
     if(vkEndCommandBuffer(buffer) != VK_SUCCESS)
         mLogger.error("Failed to record command buffer!");
 }
 
-void ke::Graphics::Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout, uint32_t mipLevels)
+void ke::Graphics::Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout srcLayout, VkImageLayout dstLayout, uint32_t mipLevels, VkCommandBuffer targetCommandBuffer)
 {
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+
+    VkCommandBuffer commandBuffer = (targetCommandBuffer == VK_NULL_HANDLE) ? beginSingleTimeCommands() : targetCommandBuffer;
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1038,7 +1314,7 @@ void ke::Graphics::Renderer::transitionImageLayout(VkImage image, VkFormat forma
 
     vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-    endSingleTimeCommands(commandBuffer);
+    if(targetCommandBuffer == VK_NULL_HANDLE) endSingleTimeCommands(commandBuffer);
 }
 
 void ke::Graphics::Renderer::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
@@ -1141,6 +1417,32 @@ void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint16_t>& indi
     vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
 }
 
+void ke::Graphics::Renderer::createGlyphInstanceBuffer(const std::vector<Text::GlyphInstance> &instances, VkBuffer &targetBuffer, VkDeviceMemory &targetMemory)
+{
+    VkDeviceSize size = sizeof(instances[0]) * instances.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(mDevice, stagingBufferMemory, 0, size, 0, &data);
+        memcpy(data, instances.data(), size);
+    vkUnmapMemory(mDevice, stagingBufferMemory);
+
+    createBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, targetBuffer, targetMemory);
+
+    copyBuffer(stagingBuffer, targetBuffer, size);
+
+    vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+    vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+}
+
+void ke::Graphics::Renderer::endRenderPass()
+{
+    vkCmdEndRenderPass(mCommandBuffers[currentFrameInFlight]);
+}
+
 void ke::Graphics::Renderer::bindUIPipeline(VkCommandBuffer buffer)
 {
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
@@ -1172,9 +1474,48 @@ void ke::Graphics::Renderer::bindScenePipeline(VkCommandBuffer buffer, const VkV
     vkCmdSetScissor(buffer, 0, 1, &scissor);
 }
 
+void ke::Graphics::Renderer::bindFontPipeline(VkCommandBuffer buffer)
+{
+    VkRenderPassBeginInfo renderBegin{};
+    renderBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderBegin.renderPass = mFontRenderPass;
+    renderBegin.framebuffer = mSwapchainFramebuffers[currentImageIndex];
+    renderBegin.renderArea.offset = {0,0};
+    renderBegin.renderArea.extent = mSwapchainExtent;
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    renderBegin.clearValueCount = 1;
+    renderBegin.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mFontPipeline);
+    vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mFontPipelineLayout, 0, 1, &mFontDescriptorSet, 0, nullptr);
+
+    VkViewport viewport{};
+    viewport.height = mSwapchainExtent.height;
+    viewport.width = mSwapchainExtent.width;
+    viewport.maxDepth = 1.0f;
+    viewport.minDepth = 0.0f;
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+
+    VkRect2D scissor{};
+    scissor.extent = mSwapchainExtent;
+    scissor.offset = {0, 0};
+
+    vkCmdSetViewport(buffer, 0, 1, &viewport);
+    vkCmdSetScissor(buffer, 0, 1, &scissor);
+}
+
 void ke::Graphics::Renderer::pickTextureIndex(int32_t index) const
 {
     vkCmdPushConstants(mCommandBuffers[currentFrameInFlight], mPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t), &index);
+}
+
+void ke::Graphics::Renderer::pickFontIndex(int32_t index) const
+{
+    vkCmdPushConstants(mCommandBuffers[currentFrameInFlight], mFontPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t), &index);
 }
 
 void ke::Graphics::Renderer::drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint16_t indexCount) const
@@ -1190,6 +1531,16 @@ void ke::Graphics::Renderer::drawBuffersIndexed(const util::Buffer& vertexBuffer
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
 
     vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
+}
+
+void ke::Graphics::Renderer::drawText(const util::Buffer& instanceBuffer, uint32_t instanceCount) const
+{
+    VkCommandBuffer commandBuffer = mCommandBuffers[currentFrameInFlight];
+
+    VkDeviceSize offsets[] = {0};
+
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &instanceBuffer.buffer, offsets);
+    vkCmdDraw(commandBuffer, 6, instanceCount, 0, 0);
 }
 
 VkDevice ke::Graphics::Renderer::getDevice() const
@@ -1437,7 +1788,6 @@ void ke::Graphics::Renderer::createDescriptorSetLayout()
     samplerLayoutBinding.binding = 0;
     samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     samplerLayoutBinding.descriptorCount = 4096;
-    mLogger.error(std::to_string(MAX_TEXTURES).c_str());
     samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     samplerLayoutBinding.pImmutableSamplers = nullptr;
 
@@ -1457,6 +1807,39 @@ void ke::Graphics::Renderer::createDescriptorSetLayout()
     if(vkCreateDescriptorSetLayout(mDevice, &layoutInfo2, nullptr, &mTextureSetLayout) != VK_SUCCESS)
         mLogger.error("Failed to create texture set layout.");
 
+    VkDescriptorBindingFlags fontBindingFlags[] = {VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT, 0};
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo2{};
+    flagsInfo2.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    flagsInfo2.bindingCount = 2;
+    flagsInfo2.pBindingFlags = fontBindingFlags;
+
+    VkDescriptorSetLayoutBinding fontSamplerLayoutBinding{};
+    fontSamplerLayoutBinding.binding = 1;
+    fontSamplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    fontSamplerLayoutBinding.descriptorCount = 64;
+    fontSamplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fontSamplerLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutBinding fontResolutionLayoutBinding{};
+    fontResolutionLayoutBinding.binding = 0;
+    fontResolutionLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    fontResolutionLayoutBinding.descriptorCount = 1;
+    fontResolutionLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    fontResolutionLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutBinding bindings[] = {fontSamplerLayoutBinding, fontResolutionLayoutBinding};
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo3{};
+    layoutInfo3.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo3.pNext = &flagsInfo2;
+    layoutInfo3.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+    layoutInfo3.bindingCount = 2;
+    layoutInfo3.pBindings = bindings;
+
+    if(vkCreateDescriptorSetLayout(mDevice, &layoutInfo3, nullptr, &mFontSetLayout) != VK_SUCCESS)
+        mLogger.error("Failed to create font set layout.");
+    
     mLogger.info("Created descriptor set layout.");
 }
 
@@ -1468,30 +1851,37 @@ void ke::Graphics::Renderer::createUniformBuffers()
     uniformBuffersMemory.resize(MAXFRAMESINFLIGHT);
     uniformBuffersMapped.resize(MAXFRAMESINFLIGHT);
 
-    for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
-    {
-        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
-        vkMapMemory(mDevice, uniformBuffersMemory[i], 0, size, 0, &uniformBuffersMapped[i]);
-    }
-
     sceneUniformBuffers.resize(MAXFRAMESINFLIGHT);
     sceneUniformBuffersMemory.resize(MAXFRAMESINFLIGHT);
     sceneUniformBuffersMapped.resize(MAXFRAMESINFLIGHT);
 
-    for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
+    glm::vec2 extentVec = {mSwapchainExtent.width, mSwapchainExtent.height};
+
+    for(unsigned int i = 0; i < MAXFRAMESINFLIGHT; i++)
     {
+        createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+        vkMapMemory(mDevice, uniformBuffersMemory[i], 0, size, 0, &uniformBuffersMapped[i]);
+
         createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sceneUniformBuffers[i], sceneUniformBuffersMemory[i]);
         vkMapMemory(mDevice, sceneUniformBuffersMemory[i], 0, size, 0, &sceneUniformBuffersMapped[i]);
     }
+
+    createBuffer(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, fontUniformBuffer, fontUniformBufferMemory);
+    vkMapMemory(mDevice, fontUniformBufferMemory, 0, sizeof(glm::vec2), 0, &fontUniformBufferMapped);
+
+    memcpy(fontUniformBufferMapped, &extentVec, sizeof(glm::vec2));
+    
 }
 
 void ke::Graphics::Renderer::createDescriptorPool()
 {
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].descriptorCount = static_cast<uint32_t>(MAXFRAMESINFLIGHT)*2;
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[1].descriptorCount = MAX_TEXTURES;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[2].descriptorCount = 64;
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
     VkDescriptorPoolCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1530,6 +1920,20 @@ void ke::Graphics::Renderer::createDescriptorSets()
     tAllocInfo.descriptorSetCount = 1;
     tAllocInfo.pNext = &variableDescriptorCount;
 
+    uint32_t fontDescriptorCountArray[] = {64};
+
+    VkDescriptorSetVariableDescriptorCountAllocateInfo fontVariableDescriptorCount{};
+    fontVariableDescriptorCount.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+    fontVariableDescriptorCount.pDescriptorCounts = fontDescriptorCountArray;
+    fontVariableDescriptorCount.descriptorSetCount = 1;
+
+    VkDescriptorSetAllocateInfo fAllocInfo{};
+    fAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    fAllocInfo.descriptorPool = mDescriptorPool;
+    fAllocInfo.pSetLayouts = &mFontSetLayout;
+    fAllocInfo.descriptorSetCount = 1;
+    fAllocInfo.pNext = &fontVariableDescriptorCount;
+
     mUIDescriptorSets.resize(MAXFRAMESINFLIGHT);
     mSceneDescriptorSets.resize(MAXFRAMESINFLIGHT);
     if(vkAllocateDescriptorSets(mDevice, &allocInfo, mUIDescriptorSets.data()) != VK_SUCCESS)
@@ -1540,6 +1944,9 @@ void ke::Graphics::Renderer::createDescriptorSets()
 
     if(vkAllocateDescriptorSets(mDevice, &tAllocInfo, &mTextureDescriptorSet) != VK_SUCCESS)
         mLogger.error("Failed to allocate texture descriptor set.");
+    
+    if(vkAllocateDescriptorSets(mDevice, &fAllocInfo, &mFontDescriptorSet) != VK_SUCCESS)
+        mLogger.error("Failed to allocate font descriptor set.");
     
     mLogger.info("Allocated descriptor sets.");
 
@@ -1583,6 +1990,21 @@ void ke::Graphics::Renderer::createDescriptorSets()
     }
 
 
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = fontUniformBuffer;
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(glm::vec2);
+
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.dstSet = mFontDescriptorSet;
+    write.dstArrayElement = 0;
+    write.descriptorCount = 1;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write.descriptorCount = 1;
+    write.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(mDevice, 1, & write, 0, nullptr);
     
 }
 
@@ -1608,6 +2030,30 @@ void ke::Graphics::Renderer::createTextureSampler()
 
     if(vkCreateSampler(mDevice, &createInfo, nullptr, &mTextureSampler) != VK_SUCCESS)
         mLogger.error("Failed to create texture sampler!");
+}
+
+void ke::Graphics::Renderer::createFontSampler()
+{
+    VkSamplerCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    createInfo.magFilter = VK_FILTER_LINEAR;
+    createInfo.minFilter = VK_FILTER_LINEAR;
+    createInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    createInfo.anisotropyEnable = VK_FALSE;
+    createInfo.maxAnisotropy = 0.0f;
+    createInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    createInfo.unnormalizedCoordinates = VK_FALSE;
+    createInfo.compareEnable = VK_FALSE;
+    createInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    createInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    createInfo.mipLodBias = 0.0f;
+    createInfo.minLod = 0.0f;
+    createInfo.maxLod = VK_LOD_CLAMP_NONE;
+
+    if(vkCreateSampler(mDevice, &createInfo, nullptr, &mFontSampler) != VK_SUCCESS)
+        mLogger.error("Failed to create font sampler!");
 }
 
 bool ke::Graphics::Renderer::checkValidationLayerSupport()

@@ -12,7 +12,7 @@ workspace "NewEngine"
             "./vendor/include",
             "/usr/local/include"
         }
-
+        
         libdirs {
             "./vendor/lib",
             "/usr/local/lib"
@@ -27,7 +27,14 @@ workspace "NewEngine"
         "Xxf86vm",
         "Xrandr",
         "Xi",
-        "openal"
+        "openal",
+        "msdfgen-ext",
+        "msdfgen-core",
+        "freetype",
+        "png",
+        "z",
+        "bz2",
+        "brotlidec"
         }
         
     filter {}
@@ -43,11 +50,12 @@ project "NewEngine"
     targetdir "bin/%{cfg.buildcfg}"
 
     files { "**.h", "**.c", "**.cpp", "**.hpp" }
+    removefiles { "vendor/**" }
     defines {"GLFW_INCLUDE_VULKAN", "STB_IMAGE_IMPLEMENTATION"}
 
     filter "system:linux"
         libdirs { "./vendor/lib", "/usr/local/lib" }
-        links { "glfw3", "vulkan", "pugixml", "dl", "pthread", "X11", "Xxf86vm", "Xrandr", "Xi", "openal" }
+        links { "glfw3", "vulkan", "pugixml", "dl", "pthread", "X11", "Xxf86vm", "Xrandr", "Xi", "openal", "msdfgen-ext", "msdfgen-core", "freetype", "png", "z", "bz2", "brotlidec" }
     filter {}
 
     filter "configurations:Debug"

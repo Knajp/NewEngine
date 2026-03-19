@@ -40,6 +40,10 @@ void ke::Core::Application::init()
     mTextureManager.init();
     mLogger.info("Finished loading texture manager.");
     
+    mLogger.trace("Requesting Text Utils init.");
+    mTextUtils.init();
+    mLogger.info("Finished loading text utils.");
+
     audioFuture.get();
 
     int width, height;
@@ -74,6 +78,8 @@ void ke::Core::Application::run()
     uint16_t musicIndex = mAudioManager.createAudio("src/Sounds/music.mp3", AL_TRUE, 1.0f, 1.0f, "music");
     mAudioManager.PlayAudio(musicIndex);
 
+
+    Graphics::Text::TextInstance text("Hello", "DejaVuSans", 300, 500, {1.0f, 0.0f, 0.0f, 1.0f});
     while (!mWindow->shouldClose())
     {
 
@@ -92,6 +98,13 @@ void ke::Core::Application::run()
 
         mSceneManager.drawScene();
 
+        mRenderer.endRenderPass();
+        mRenderer.bindFontPipeline(cb);
+        mRenderer.updateFontUniforms();
+
+        text.Draw();
+        
+        mRenderer.endRenderPass();
         mRenderer.finishDraw(mWindow->getWindowHandle());
         Graphics::Window::pollEvents();
     }

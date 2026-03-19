@@ -35,6 +35,8 @@ namespace ke
 
             std::vector<util::str::Vertex2P3C2T> mVertices;
             std::vector<uint16_t> mIndices;
+
+            static std::unordered_map<std::string, std::function<void()>> mHandlers;
         };
 
         class SceneComponent
@@ -52,6 +54,7 @@ namespace ke
             
             glm::ivec2 pos;
             glm::ivec2 extent; 
+
         };
 
         class UImanager

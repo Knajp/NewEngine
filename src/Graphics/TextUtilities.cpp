@@ -1,0 +1,165 @@
+#define STB_RECT_PACK_IMPLEMENTATION
+#include "TextUtilities.hpp"
+
+#include "Renderer.hpp"
+void ke::Graphics::Text::TextUtils::init()
+{
+    ft = msdfgen::initializeFreetype();
+
+    const std::filesystem::path targetPath("./src/Fonts");
+
+    try
+    {
+        for(auto const& direntry : std::filesystem::directory_iterator(targetPath))
+        {
+            if(!std::filesystem::is_regular_file(direntry.path())) continue;
+
+            mFonts[direntry.path().filename().stem()] = Font(direntry.path(), ft);
+        }
+    }
+    catch(const std::filesystem::filesystem_error& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+    
+
+}
+
+    ke::Graphics::Text::GlyphInfo ke::Graphics::Text::TextUtils::rasterizeGlyph(msdfgen::FontHandle *font, uint32_t codepoint)
+    {
+        msdfgen::Shape shape;
+        double advance;
+        msdfgen::loadGlyph(shape, font, msdfgen::GlyphIndex(codepoint), &advance);
+
+        shape.normalize();
+        msdfgen::edgeColoringSimple(shape, 3.0);
+
+        msdfgen::Bitmap<float, 3> bitmap(GLYPH_SIZE, GLYPH_SIZE);
+        msdfgen::Shape::Bounds bounds = shape.getBounds();
+    
+        double l = bounds.l, b = bounds.b, r = bounds.r, t = bounds.t;
+        double scale = (GLYPH_SIZE - 4) / std::max(r - l, t - b);
+        msdfgen::Vector2 translate(-l + 2.0 / scale, -b + 2.0 / scale);
+
+        msdfgen::generateMSDF(bitmap, shape, msdfgen::Projection(scale, translate), 16.0);
+
+        GlyphInfo info;
+        info.width = GLYPH_SIZE;
+        info.height = GLYPH_SIZE;
+        info.advance = (float)advance * scale;
+
+        info.pixels.resize(info.width * info.height * 3); // RGB across every pixel
+
+        for(int y = 0; y < info.height; y++)
+            for(int x = 0; x < info.width; x++)
+            {
+                const float* px = bitmap(x, y);
+
+                int i = (y * GLYPH_SIZE + x) * 3;
+                info.pixels[i + 0] = px[0];
+                info.pixels[i + 1] = px[1];
+                info.pixels[i + 2] = px[2];
+            }
+
+        return info;
+    }
+
+ke::Graphics::Text::Font &ke::Graphics::Text::TextUtils::getFont(const std::string &fontname)
+{
+    return mFonts.at(fontname);
+}
+
+ke::Graphics::Text::Font::Font(const std::string &filepath, msdfgen::FreetypeHandle* lib)
+{
+    mFontHandle = msdfgen::loadFont(lib, filepath.c_str());
+
+    rasterizeGlyphs(32, 128);
+
+    
+}
+
+void ke::Graphics::Text::Font::rasterizeGlyphs(int min, int max)
+{
+    TextUtils& textutils = TextUtils::getInstance();
+    for(uint32_t cp = min; cp < max; cp++)
+    {
+        mGlyphs[cp] = textutils.rasterizeGlyph(mFontHandle, cp);
+    }
+
+    stbrp_context packCtx;
+    stbrp_node nodes[ATLAS_SIZE];
+    stbrp_init_target(&packCtx, ATLAS_SIZE, ATLAS_SIZE, nodes, ATLAS_SIZE);
+
+    std::vector<stbrp_rect> rects;
+    for(auto& [codepoint, glyph] : mGlyphs)
+    {
+        rects.push_back({(int)codepoint, (int)glyph.width, (int)glyph.height});
+    }
+
+    stbrp_pack_rects(&packCtx, rects.data(), rects.size());
+
+    for(auto& rect : rects)
+    {
+        auto& glyph = mGlyphs[rect.id];
+
+        glyph.atlasX = rect.x;
+        glyph.atlasY = rect.y;
+        glyph.u0 = rect.x / (float)ATLAS_SIZE;
+        glyph.v0 = rect.y / (float)ATLAS_SIZE;
+        glyph.u1 = (rect.x + rect.w) / (float)ATLAS_SIZE;
+        glyph.v1 = (rect.y + rect.h) / (float)ATLAS_SIZE;
+    }
+
+    std::cout << "E ATLAS COORDS: " << mGlyphs['e'].atlasX << " " << mGlyphs['e'].atlasY << "\n";
+    std::cout << "H ATLAS COORDS: " << mGlyphs['h'].atlasX << " " << mGlyphs['h'].atlasY << "\n";
+    Renderer& rend = Renderer::getInstance();
+    mImage.setDevice(rend.getDevice());
+    rend.createFontImage(mGlyphs, ATLAS_SIZE, mImage.image, mImage.imageMemory);
+    rend.createFontImageView(mImage);
+    mDescriptorIndex = rend.addFontToDescriptor(mImage);
+}
+
+ke::Graphics::Text::GlyphInfo &ke::Graphics::Text::Font::getGlyphInfo(uint32_t codepoint)
+{
+    return mGlyphs.at(codepoint);
+}
+
+uint32_t ke::Graphics::Text::Font::getDescriptorIndex() const
+{
+    return mDescriptorIndex;
+}
+
+ke::Graphics::Text::TextInstance::TextInstance(const std::string &text, const std::string &fontname, int x, int y, glm::vec4 color)
+{
+    TextUtils& textutils = TextUtils::getInstance();
+    Font& font = textutils.getFont(fontname);
+
+    int cursorX = x;
+    for(char ch : text)
+    {
+        GlyphInfo& ginfo = font.getGlyphInfo((uint32_t)ch);
+        
+        std::cout << ch << " U0 IS " << ginfo.u0 << "\n";
+
+        mInstances.push_back(GlyphInstance{
+            .position = {cursorX, y},
+            .size = {ginfo.width, ginfo.height},
+            .uv = {ginfo.u0, ginfo.v0, ginfo.u1, ginfo.v1},
+            .color = color,
+        });
+        cursorX += ginfo.advance;
+    }
+
+    Renderer& rend = Renderer::getInstance();
+    mInstanceBuffer.setDevice(rend.getDevice());
+    rend.createGlyphInstanceBuffer(mInstances, mInstanceBuffer.buffer, mInstanceBuffer.bufferMemory);
+    mFontIndex = font.getDescriptorIndex();
+}
+
+void ke::Graphics::Text::TextInstance::Draw() const
+{
+    static Renderer& rend = Renderer::getInstance();
+    
+    rend.pickFontIndex(mFontIndex);
+    rend.drawText(mInstanceBuffer, static_cast<uint32_t>(mInstances.size()));
+}

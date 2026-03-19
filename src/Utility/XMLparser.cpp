@@ -40,6 +40,7 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<std::unique_ptr<
     }
     for(pugi::xml_node button : root.children("Button"))
     {
+
         float x = button.attribute("x").as_float() / 100.0f;
         float y = button.attribute("y").as_float() / 100.0f;
         float w = button.attribute("w").as_float() / 100.0f;
@@ -62,13 +63,6 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<std::unique_ptr<
         buttons.push_back(gui::Button(x,y,w,h, glm::vec3(rf,gf,bf), buttonID));
         size_t lastIndex = buttons.size() - 1;
 
-        if(std::string(buttonID) == "addelement")
-        {
-            buttons[lastIndex].onClick = []()
-            {
-                std::cout << "ADD ELEMENT BUTTON CLICKED!";
-            };
-        }
     }
 }
 

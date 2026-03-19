@@ -27,6 +27,7 @@ namespace ke
 			SceneManager& mSceneManager = SceneManager::getInstance();
 			Graphics::Texture::TextureManager& mTextureManager = Graphics::Texture::TextureManager::getInstance();
 			Audio::AudioManager& mAudioManager = Audio::AudioManager::getInstance();
+			Graphics::Text::TextUtils& mTextUtils = Graphics::Text::TextUtils::getInstance();
 			
 			util::Logger mLogger = util::Logger("Main Application Logger");
 

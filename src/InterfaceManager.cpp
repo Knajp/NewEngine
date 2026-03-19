@@ -1,6 +1,31 @@
 #include "InterfaceManager.hpp"
+#include "SceneManager.hpp"
 
+std::unordered_map<std::string, std::function<void()>> ke::gui::Component::mHandlers = 
+{
+    {"addelement", []() 
+    {
+        util::Mesh mesh(
+        {
+            {{-1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
+            {{0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+            {{-1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+            {{0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}
+        },
+        {
+            3, 2, 0,
+            3, 0, 1
+        }
+        );
+        SceneObject object;
+        object.loadMesh(mesh);
+        object.setTexture("fire");
 
+        SceneManager& sceneManager = SceneManager::getInstance();
+        sceneManager.addObjectToScene(std::make_unique<SceneObject>(std::move(object)));
+
+    }}
+};
 ke::gui::Component::Component(std::string filepath)
     : mIndexBuffer(Graphics::Renderer::getInstance().getDevice()), mVertexBuffer(Graphics::Renderer::getInstance().getDevice())
 {
@@ -42,7 +67,7 @@ ke::gui::Component::Component(std::string filepath)
     }
 
  
-    for(const auto& obj : mButtons)
+    for(auto& obj : mButtons)
     {
         float x = obj.x;
         x *= 2.0f;
@@ -72,6 +97,11 @@ ke::gui::Component::Component(std::string filepath)
 
 
         indexAdvance += 4;
+
+        auto it = mHandlers.find(obj.buttonID);
+
+        if(it != mHandlers.end())
+            obj.onClick = it->second;
     }
 
 
