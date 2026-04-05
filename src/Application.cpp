@@ -79,7 +79,7 @@ void ke::Core::Application::run()
     mAudioManager.PlayAudio(musicIndex);
 
 
-    Graphics::Text::TextInstance text("Hello", "DejaVuSans", 300, 500, {1.0f, 0.0f, 0.0f, 1.0f});
+    Graphics::Text::TextInstance text("Hello, Flavortown!", "DejaVuSans", 200, 500, {1.0f, 0.0f, 0.0f, 1.0f});
     while (!mWindow->shouldClose())
     {
 
@@ -132,7 +132,11 @@ void ke::Core::Application::terminate()
     mLogger.info("Requesting audio termination.");
     mAudioManager.terminate();
     mLogger.info("Finished unloading audio.");
-     
+    
+    mLogger.info("Requesting text termination.");
+    mTextUtils.terminate();
+    mLogger.info("Finished unloading text.");
+    
     mLogger.trace("Requesting renderer termination.");
     mRenderer.terminate();
     mLogger.trace("Finished terminating renderer.");

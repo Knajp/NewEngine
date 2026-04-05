@@ -24,9 +24,11 @@ namespace ke
                 uint32_t width, height;
                 int bearingX, bearingY;
                 float advance;
-                float u0, u1, v0, v1;
+                float u0, v0, u1, v1;
+                uint16_t internalCodepoint;
                 std::vector<float> pixels;
             };
+
 
             struct GlyphInstance
             {
@@ -79,7 +81,8 @@ namespace ke
             public:
                 Font() = default;
                 Font(const std::string& filepath, msdfgen::FreetypeHandle* lib);
-
+                ~Font();
+                
                 void rasterizeGlyphs(int min, int max);
                 GlyphInfo& getGlyphInfo(uint32_t codepoint);
                 uint32_t getDescriptorIndex() const;
@@ -102,19 +105,20 @@ namespace ke
                     static TextUtils instance;
                     return instance;
                 }
-
+                
                 void init();
-
+                void terminate();
+                
                 GlyphInfo rasterizeGlyph(msdfgen::FontHandle* font, uint32_t codepoint);
 
-                Font& getFont(const std::string& fontname);
+                ke::Graphics::Text::Font& getFont(const std::string& fontname);
             private:
                 TextUtils() = default;
 
 
                 msdfgen::FreetypeHandle* ft = nullptr;
 
-                std::unordered_map<std::string, Font> mFonts;
+                std::unordered_map<std::string, std::unique_ptr<Font>> mFonts;
                 static const unsigned int GLYPH_SIZE = 32;
 
             };
@@ -123,7 +127,7 @@ namespace ke
             {
             public:
                 TextInstance(const std::string& text, const std::string& font, int x, int y, glm::vec4 color);
-
+               
                 void Draw() const;
 
             private:

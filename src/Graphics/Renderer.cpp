@@ -64,6 +64,7 @@ void ke::Graphics::Renderer::terminate()
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
 
     vkDestroySampler(mDevice, mTextureSampler, nullptr);
+    vkDestroySampler(mDevice, mFontSampler, nullptr);
 
     for(size_t i = 0; i < MAXFRAMESINFLIGHT; i++)
     {
@@ -276,11 +277,11 @@ uint32_t ke::Graphics::Renderer::addTextureToDescriptor(const util::Image &image
 
 void ke::Graphics::Renderer::createFontImage(const std::unordered_map<uint32_t, ke::Graphics::Text::GlyphInfo> &glyphs, const unsigned int ATLAS_SIZE, VkImage& fontImage, VkDeviceMemory& fontImageMemory)
 {
-    createImage(ATLAS_SIZE, ATLAS_SIZE, 1, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, fontImage, fontImageMemory);
+    createImage(ATLAS_SIZE, ATLAS_SIZE, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, fontImage, fontImageMemory);
 
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-    VkDeviceSize stagingBufferSize = ATLAS_SIZE * ATLAS_SIZE * 3;
+    VkDeviceSize stagingBufferSize = ATLAS_SIZE * ATLAS_SIZE * 4;
 
     util::Buffer stagingBuffer(mDevice);
     createBuffer(stagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer.buffer, stagingBuffer.bufferMemory);
@@ -288,48 +289,50 @@ void ke::Graphics::Renderer::createFontImage(const std::unordered_map<uint32_t, 
     void* data;
     vkMapMemory(mDevice, stagingBuffer.bufferMemory, 0, stagingBufferSize, 0, &data);
     {
-        transitionImageLayout(fontImage, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer);
+        transitionImageLayout(fontImage, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer);
         VkDeviceSize stagingOffset = 0;
-        for(auto& [codepoint, glyph] : glyphs)
-        {
-            printf("uploading cp=%u to atlasX=%u atlasY=%u stagingOffset=%llu\n", 
-           codepoint, glyph.atlasX, glyph.atlasY, stagingOffset);
-            std::vector<uint8_t> bytes(glyph.pixels.size());
-            for(size_t i = 0; i < glyph.pixels.size(); i++)
-                bytes[i] = (uint8_t)(glyph.pixels[i] * 255.0f);
+        memset(data, 0, stagingBufferSize);
 
-            memcpy((uint8_t*)data + stagingOffset, bytes.data(), bytes.size());
+        for (auto& [codepoint, glyph] : glyphs) 
+            for (int row = 0; row < (int)glyph.height; row++) {
+                uint8_t* dst = (uint8_t*)data + ((glyph.atlasY + row) * ATLAS_SIZE + glyph.atlasX) * 4;
+                
+                for (int x = 0; x < (int)glyph.width; x++) {
+                    
+                    int src = (row * glyph.width + x) * 4;
+                    dst[x*4+0] = (uint8_t)(glyph.pixels[src+2] * 255.0f);
+                    dst[x*4+1] = (uint8_t)(glyph.pixels[src+1] * 255.0f);
+                    dst[x*4+2] = (uint8_t)(glyph.pixels[src+0] * 255.0f);
+                    dst[x*4+3] = 255;
+                }
+            }
+        
 
-            VkBufferImageCopy region{};
-            region.bufferOffset = stagingOffset;
-            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            region.imageSubresource.baseArrayLayer = 0;
-            region.imageSubresource.layerCount = 1;
-            region.imageSubresource.mipLevel = 0;
-            region.imageOffset.x = (int32_t)glyph.atlasX;
-            region.imageOffset.y = (int32_t)glyph.atlasY;
-            region.imageOffset.z = 0;
-            region.imageExtent.width = glyph.width;
-            region.imageExtent.height = glyph.height;
-            region.imageExtent.depth = 1;
-            
-            vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.buffer, fontImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        VkBufferImageCopy region{};
+        region.bufferOffset      = 0;
+        region.bufferRowLength   = ATLAS_SIZE;
+        region.bufferImageHeight = ATLAS_SIZE;
+        region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount     = 1;
+        region.imageSubresource.mipLevel       = 0;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {ATLAS_SIZE, ATLAS_SIZE, 1};
+        vkCmdCopyBufferToImage(commandBuffer, stagingBuffer.buffer, fontImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-            stagingOffset += bytes.size();
-        }
-
-        transitionImageLayout(fontImage, VK_FORMAT_R8G8B8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, commandBuffer);
+        transitionImageLayout(fontImage, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1, commandBuffer);
     }
     vkUnmapMemory(mDevice, stagingBuffer.bufferMemory);
 
 
-
     endSingleTimeCommands(commandBuffer);
+    stagingBuffer.destroy();
+
 }
 
 void ke::Graphics::Renderer::createFontImageView(util::Image &image)
 {
-    image.imageView = createImageView(image.image, VK_FORMAT_R8G8B8_UNORM, 1);
+    image.imageView = createImageView(image.image, VK_FORMAT_B8G8R8A8_UNORM, 1);
 }
 
 uint32_t ke::Graphics::Renderer::addFontToDescriptor(const util::Image &image)
