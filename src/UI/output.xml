@@ -2,4 +2,5 @@
 
 <KEUIcomponent name="output" x="0" y="0" w="80" h="20">
     <Frame x="0" y="0" w="100" h="100" color="#314f55"></Frame>
+    <input type="text" placeholder=".obj File name here: "></input>
 </KEUIcomponent> 

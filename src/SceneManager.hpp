@@ -118,6 +118,8 @@ namespace ke
         VkViewport mSceneViewport;
         VkRect2D mSceneScissor;
 
+        bool isFocused = true;
+        
         std::vector<std::unique_ptr<SceneObject>> mSceneObjects;
     };
 }
