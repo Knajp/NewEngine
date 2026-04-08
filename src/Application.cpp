@@ -56,30 +56,12 @@ void ke::Core::Application::init()
 void ke::Core::Application::run()
 {
     mLogger.trace("Proceeding to main loop.");
-
-    util::Mesh mesh(
-    {
-        {{-0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-        {{0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}
-    },
-    {
-        3, 2, 0,
-        3, 0, 1
-    }
-    );
-    SceneObject object;
-    object.loadMesh(mesh);
-    object.setTexture("flower");
-
-    mSceneManager.addObjectToScene(std::make_unique<SceneObject>(std::move(object)));
     
     uint16_t musicIndex = mAudioManager.createAudio("src/Sounds/music.mp3", AL_TRUE, 1.0f, 1.0f, "music");
     mAudioManager.PlayAudio(musicIndex);
 
 
-    Graphics::Text::TextInstance text("Hello, Flavortown!", "DejaVuSans", 200, 500, {1.0f, 0.0f, 0.0f, 1.0f});
+    Graphics::Text::TextInstance text("Hello, Flavortown!", "DejaVuSans", 200, 500, {0.0f, 1.0f, 0.0f, 1.0f});
     while (!mWindow->shouldClose())
     {
 

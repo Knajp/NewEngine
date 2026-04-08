@@ -24,7 +24,7 @@ void main()
     vec3 msdf = texture(atlases[apc.atlasIndex], FragUV).rgb;
     float dist = median(msdf.r, msdf.g, msdf.b);
     float width = fwidth(dist);
-    float alpha = smoothstep(0.5 + width, 0.5 - width, dist);
+    float alpha = smoothstep(0.5 - width, 0.5 + width, dist);
 
     outColor = vec4(FragColor.rgb, FragColor.a * alpha);
 }

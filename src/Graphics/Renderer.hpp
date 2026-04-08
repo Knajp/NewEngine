@@ -2,7 +2,6 @@
 
 #define VK_USE_PLATFORM_XCB_KHR
 #define GLFW_EXPOSE_NATIVE_X11
-#define GLFW_INCLUDE_VULKAN
 
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
@@ -45,7 +44,32 @@ namespace ke
             uint32_t addFontToDescriptor(const util::Image& image);
 
             void signalWindowResize();
-            void createVertexBuffer(const std::vector<util::str::Vertex2P3C2T>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+
+            template<typename T>
+            void createVertexBuffer(const std::vector<T>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)
+            {
+                static_assert(std::is_same_v<T, util::str::Vertex2P3C2T> || std::is_same_v<T, util::str::Vertex3P3C2T>, "unsupported vertex type in createVertexBuffer");
+            
+                VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
+            
+                VkBuffer stagingBuffer;
+                VkDeviceMemory stagingBufferMemory;
+                createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+                void* data;
+                vkMapMemory(mDevice, stagingBufferMemory, 0, size, 0, &data);
+                    memcpy(data, vertices.data(), (size_t) size);
+                vkUnmapMemory(mDevice, stagingBufferMemory);
+            
+                createBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, targetBuffer, targetMemory);
+
+                copyBuffer(stagingBuffer, targetBuffer, size);
+            
+                vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
+                vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
+            
+            }
+
             void createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
             void createGlyphInstanceBuffer(const std::vector<Text::GlyphInstance>& instances, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
 

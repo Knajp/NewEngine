@@ -1,9 +1,12 @@
 #include "Renderer.hpp"
 #include <iostream>
 #include <set>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
+#include <type_traits>
 
 #include <stb/stb_image.h>
 
@@ -884,6 +887,37 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     if(vkCreatePipelineLayout(mDevice, &layoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
         mLogger.error("Failed to create a pipeline layout!");
 
+
+    auto sceneVertexCode = ke::util::readFile("./shader/bin/scenevert.spv");
+    auto sceneFragmentCode = ke::util::readFile("./shader/bin/scenefrag.spv");
+
+    VkShaderModule sceneVertexModule = createShaderModule(sceneVertexCode);
+    VkShaderModule sceneFragmentModule = createShaderModule(sceneFragmentCode);
+
+    VkPipelineShaderStageCreateInfo sceneVertexStage{};
+    sceneVertexStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    sceneVertexStage.module = sceneVertexModule;
+    sceneVertexStage.pName = "main";
+    sceneVertexStage.stage = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkPipelineShaderStageCreateInfo sceneFragmentStage{};
+    sceneFragmentStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    sceneFragmentStage.module = sceneFragmentModule;
+    sceneFragmentStage.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    sceneFragmentStage.pName = "main";
+
+    VkPipelineShaderStageCreateInfo sceneStages[] = {sceneVertexStage, sceneFragmentStage};
+
+    VkVertexInputBindingDescription sceneBindingDescription = util::str::Vertex3P3C2T::getInputBindingDescription();
+    std::array<VkVertexInputAttributeDescription, 3> sceneVertexAttribs = util::str::Vertex3P3C2T::getInputAttributeDescriptions();
+
+    VkPipelineVertexInputStateCreateInfo sceneVertexInput{};
+    sceneVertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    sceneVertexInput.vertexAttributeDescriptionCount = static_cast<uint32_t>(sceneVertexAttribs.size());
+    sceneVertexInput.vertexBindingDescriptionCount = 1;
+    sceneVertexInput.pVertexAttributeDescriptions = sceneVertexAttribs.data();
+    sceneVertexInput.pVertexBindingDescriptions = &sceneBindingDescription;
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
@@ -903,12 +937,18 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mPipeline) != VK_SUCCESS)
         mLogger.critical("Failed to create a graphics pipeline!");
         
+    pipelineInfo.pStages = sceneStages;
+    pipelineInfo.pVertexInputState = &sceneVertexInput;
+    
     if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mDisplayPipeline) != VK_SUCCESS)
         mLogger.critical("Failed to create a second pipeline!");
 
     vkDestroyShaderModule(mDevice, vertexModule, nullptr);
     vkDestroyShaderModule(mDevice, fragmentModule, nullptr);
 
+    vkDestroyShaderModule(mDevice, sceneVertexModule, nullptr);
+    vkDestroyShaderModule(mDevice, sceneFragmentModule, nullptr);
+    
     mLogger.info("Created graphics pipeline!");
 }
 
@@ -1375,28 +1415,6 @@ void ke::Graphics::Renderer::endSingleTimeCommands(VkCommandBuffer commandBuffer
     vkQueueWaitIdle(mGraphicsQueue);
 
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
-}
-
-void ke::Graphics::Renderer::createVertexBuffer(const std::vector<util::str::Vertex2P3C2T>& vertices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)
-{
-    VkDeviceSize size = sizeof(vertices[0]) * vertices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
-    
-    void* data;
-    vkMapMemory(mDevice, stagingBufferMemory, 0, size, 0, &data);
-        memcpy(data, vertices.data(), (size_t) size);
-    vkUnmapMemory(mDevice, stagingBufferMemory);
-
-    createBuffer(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, targetBuffer, targetMemory);
-    
-    copyBuffer(stagingBuffer, targetBuffer, size);
-
-    vkDestroyBuffer(mDevice, stagingBuffer, nullptr);
-    vkFreeMemory(mDevice, stagingBufferMemory, nullptr);
-
 }
 
 void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)

@@ -4,6 +4,7 @@
 #include "Graphics/Renderer.hpp"
 #include <vector>
 #include <vulkan/vulkan.h>
+#include <tinyobjloader/tiny_obj_loader.h>
 
 namespace ke
 {
@@ -14,11 +15,11 @@ namespace ke
         util::Buffer indexBuffer;
         util::Buffer vertexBuffer;
         
-        std::vector<ke::util::str::Vertex2P3C2T> mVertices;
+        std::vector<ke::util::str::Vertex3P3C2T> mVertices;
         std::vector<uint16_t> mIndices;
 
         Mesh() = default;
-        Mesh(const std::vector<util::str::Vertex2P3C2T>& vertices, const std::vector<uint16_t>& indices)
+        Mesh(const std::vector<util::str::Vertex3P3C2T>& vertices, const std::vector<uint16_t>& indices)
         {
             VkDeviceSize verticesSize = sizeof(vertices[0]) * vertices.size();
             VkDeviceSize indexSize = sizeof(indices[0]) * indices.size();
@@ -28,11 +29,16 @@ namespace ke
             indexBuffer.setDevice(rend.getDevice());
             vertexBuffer.setDevice(rend.getDevice());
 
-            rend.createVertexBuffer(vertices, vertexBuffer.buffer, vertexBuffer.bufferMemory);
+            rend.createVertexBuffer<util::str::Vertex3P3C2T>(vertices, vertexBuffer.buffer, vertexBuffer.bufferMemory);
             rend.createIndexBuffer(indices, indexBuffer.buffer, indexBuffer.bufferMemory);
 
             mVertices = std::move(vertices);
             mIndices = std::move(indices);
+        }
+
+        Mesh(const std::string objFilePath)
+        {
+
         }
             
         Mesh(const Mesh& other) = delete;
