@@ -42,8 +42,10 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
     createLogicalDevice();
     createSwapchain(window);
     createSwapchainImageViews();
+    createDepthResources();
     createRenderPass();
     createFontRenderPass();
+    createSceneRenderPass();
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createFontPipeline();
@@ -63,6 +65,8 @@ void ke::Graphics::Renderer::init(GLFWwindow* window)
 void ke::Graphics::Renderer::terminate()
 {
     vkDeviceWaitIdle(mDevice);
+
+    mDepthImage.destroy();
 
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
 
@@ -102,6 +106,7 @@ void ke::Graphics::Renderer::terminate()
 
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyPipelineLayout(mDevice, mFontPipelineLayout, nullptr);
+    vkDestroyRenderPass(mDevice, mSceneRenderPass, nullptr);
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
     vkDestroyRenderPass(mDevice, mFontRenderPass, nullptr);
 
@@ -252,7 +257,7 @@ void ke::Graphics::Renderer::createTextureImage(const std::string &filepath, uti
 
 void ke::Graphics::Renderer::createTextureImageView(util::Image& image)
 {
-    image.imageView = createImageView(image.image, VK_FORMAT_R8G8B8A8_SRGB, mMipLevels);
+    image.imageView = createImageView(image.image, VK_FORMAT_R8G8B8A8_SRGB, mMipLevels, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 uint32_t ke::Graphics::Renderer::addTextureToDescriptor(const util::Image &image)
@@ -335,7 +340,7 @@ void ke::Graphics::Renderer::createFontImage(const std::unordered_map<uint32_t, 
 
 void ke::Graphics::Renderer::createFontImageView(util::Image &image)
 {
-    image.imageView = createImageView(image.image, VK_FORMAT_B8G8R8A8_UNORM, 1);
+    image.imageView = createImageView(image.image, VK_FORMAT_B8G8R8A8_UNORM, 1, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 uint32_t ke::Graphics::Renderer::addFontToDescriptor(const util::Image &image)
@@ -870,6 +875,11 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     colorBlend.attachmentCount = 1;
     colorBlend.pAttachments = &colorAtt;
 
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
+
     VkDescriptorSetLayout dLayouts[] = {mTextureSetLayout, mDescriptorSetLayout};
 
     VkPushConstantRange pushRange{};
@@ -918,6 +928,13 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     sceneVertexInput.pVertexAttributeDescriptions = sceneVertexAttribs.data();
     sceneVertexInput.pVertexBindingDescriptions = &sceneBindingDescription;
 
+    VkPipelineDepthStencilStateCreateInfo sceneDepthState{};
+    sceneDepthState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    sceneDepthState.depthTestEnable = VK_TRUE;
+    sceneDepthState.depthWriteEnable = VK_TRUE;
+    sceneDepthState.depthCompareOp = VK_COMPARE_OP_LESS;
+    sceneDepthState.stencilTestEnable = VK_FALSE;
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
@@ -930,18 +947,23 @@ void ke::Graphics::Renderer::createGraphicsPipeline()
     pipelineInfo.pMultisampleState = &multisample;
     pipelineInfo.pColorBlendState = &colorBlend;
     pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.layout = mPipelineLayout;
     pipelineInfo.renderPass = mRenderPass;
     pipelineInfo.subpass = 0;
 
     if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mPipeline) != VK_SUCCESS)
         mLogger.critical("Failed to create a graphics pipeline!");
-        
+    mLogger.info("Created UI pipeline!");
+
     pipelineInfo.pStages = sceneStages;
     pipelineInfo.pVertexInputState = &sceneVertexInput;
-    
+    pipelineInfo.pDepthStencilState = &sceneDepthState;
+    pipelineInfo.renderPass = mSceneRenderPass;
+
     if(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mDisplayPipeline) != VK_SUCCESS)
         mLogger.critical("Failed to create a second pipeline!");
+    mLogger.info("Created scene pipeline!");
 
     vkDestroyShaderModule(mDevice, vertexModule, nullptr);
     vkDestroyShaderModule(mDevice, fragmentModule, nullptr);
@@ -988,6 +1010,11 @@ void ke::Graphics::Renderer::createFontPipeline()
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_FALSE;
+    depthStencil.stencilTestEnable = VK_FALSE;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -1075,6 +1102,7 @@ void ke::Graphics::Renderer::createFontPipeline()
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.layout = mFontPipelineLayout;
     pipelineInfo.renderPass = mFontRenderPass;
     pipelineInfo.subpass = 0;
@@ -1114,28 +1142,44 @@ void ke::Graphics::Renderer::createRenderPass()
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = findDepthFormat();
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkAttachmentReference colorRef{};
     colorRef.attachment = 0;
     colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthRef{};
+    depthRef.attachment = 1;
+    depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpass{}; 
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorRef;
+    subpass.pDepthStencilAttachment = &depthRef;
 
     VkSubpassDependency dep{};
     dep.srcSubpass = VK_SUBPASS_EXTERNAL;
     dep.dstSubpass = 0;
-    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.srcAccessMask = 0;
-    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dep.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
 
     VkRenderPassCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = &colorAttachment;
+    createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    createInfo.pAttachments = attachments.data();
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
     createInfo.dependencyCount = 1;
@@ -1157,30 +1201,46 @@ void ke::Graphics::Renderer::createFontRenderPass()
     colorAtt.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     colorAtt.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = findDepthFormat();
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkAttachmentReference attRef{};
     attRef.attachment = 0;
     attRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthRef{};
+    depthRef.attachment = 1;
+    depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &attRef;
+    subpass.pDepthStencilAttachment = &depthRef;
 
     VkSubpassDependency dep{};
     dep.srcSubpass = VK_SUBPASS_EXTERNAL;
     dep.dstSubpass = 0;
-    dep.srcAccessMask = 0;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dep.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
+    std::array<VkAttachmentDescription, 2> attachments = {colorAtt, depthAttachment};
 
     VkRenderPassCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     createInfo.subpassCount = 1;
     createInfo.pSubpasses = &subpass;
-    createInfo.attachmentCount = 1;
-    createInfo.pAttachments = &colorAtt;
+    createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    createInfo.pAttachments = attachments.data();
     createInfo.dependencyCount = 1;
     createInfo.pDependencies = &dep;
 
@@ -1189,19 +1249,80 @@ void ke::Graphics::Renderer::createFontRenderPass()
     
 }
 
+void ke::Graphics::Renderer::createSceneRenderPass()
+{
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = mSwapchainFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = findDepthFormat();
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference colorRef{};
+    colorRef.attachment = 0;
+    colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthRef{};
+    depthRef.attachment = 1;
+    depthRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{}; 
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorRef;
+    subpass.pDepthStencilAttachment = &depthRef;
+
+    VkSubpassDependency dep{};
+    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dep.dstSubpass = 0;
+    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dep.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+
+    VkRenderPassCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    createInfo.pAttachments = attachments.data();
+    createInfo.subpassCount = 1;
+    createInfo.pSubpasses = &subpass;
+    createInfo.dependencyCount = 1;
+    createInfo.pDependencies = &dep;
+
+    if(vkCreateRenderPass(mDevice, &createInfo, nullptr, &mSceneRenderPass) != VK_SUCCESS)
+        mLogger.error("Failed to create render pass!");
+
+    mLogger.info("Created render pass.");
+}
+
 void ke::Graphics::Renderer::createFramebuffers()
 {
     mSwapchainFramebuffers.resize(mSwapchainImageViews.size());
 
     for(size_t i = 0; i < mSwapchainImageViews.size(); i++)
     {
-        VkImageView attachments[] = {mSwapchainImageViews[i]};
+        std::array<VkImageView, 2> attachments = {mSwapchainImageViews[i], mDepthImage.imageView};
 
         VkFramebufferCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         createInfo.renderPass = mRenderPass;
-        createInfo.attachmentCount = 1;
-        createInfo.pAttachments = attachments;
+        createInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        createInfo.pAttachments = attachments.data();
         createInfo.height = mSwapchainExtent.height;
         createInfo.width = mSwapchainExtent.width;
         createInfo.layers = 1;
@@ -1287,9 +1408,12 @@ void ke::Graphics::Renderer::beginRecording(VkCommandBuffer buffer)
     renderBegin.renderArea.offset = {0,0};
     renderBegin.renderArea.extent = mSwapchainExtent;
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderBegin.clearValueCount = 1;
-    renderBegin.pClearValues = &clearColor;
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+
+    renderBegin.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderBegin.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1504,9 +1628,12 @@ void ke::Graphics::Renderer::bindFontPipeline(VkCommandBuffer buffer)
     renderBegin.renderArea.offset = {0,0};
     renderBegin.renderArea.extent = mSwapchainExtent;
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderBegin.clearValueCount = 1;
-    renderBegin.pClearValues = &clearColor;
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+
+    renderBegin.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderBegin.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1657,14 +1784,14 @@ void ke::Graphics::Renderer::createImage(uint32_t width, uint32_t height, uint32
     vkBindImageMemory(mDevice, image, memory, 0);
 }
 
-VkImageView ke::Graphics::Renderer::createImageView(VkImage image, VkFormat format, uint32_t mipLevels)
+VkImageView ke::Graphics::Renderer::createImageView(VkImage image, VkFormat format, uint32_t mipLevels, VkImageAspectFlags aspectFlags)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = format;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.aspectMask = aspectFlags;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
     viewInfo.subresourceRange.baseMipLevel = 0;
@@ -2027,6 +2154,42 @@ void ke::Graphics::Renderer::createDescriptorSets()
 
     vkUpdateDescriptorSets(mDevice, 1, & write, 0, nullptr);
     
+}
+
+void ke::Graphics::Renderer::createDepthResources()
+{
+    mDepthImage.setDevice(mDevice);
+    VkFormat depthFormat = findDepthFormat();
+
+    createImage(mSwapchainExtent.width, mSwapchainExtent.height, 1, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mDepthImage.image, mDepthImage.imageMemory);
+    mDepthImage.imageView = createImageView(mDepthImage.image, depthFormat, 1, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+}
+
+VkFormat ke::Graphics::Renderer::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
+{
+    for(VkFormat format : candidates)
+    {
+        VkFormatProperties props{};
+        vkGetPhysicalDeviceFormatProperties(mPhysicalDevice, format, &props);
+
+        if(tiling == VK_IMAGE_TILING_LINEAR && (props.optimalTilingFeatures & features) == features)
+            return format;
+        else if(tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+            return format;
+        
+        mLogger.error("Failed to find supported format!");
+    }
+}
+
+VkFormat ke::Graphics::Renderer::findDepthFormat()
+{
+    return findSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+bool ke::Graphics::Renderer::hasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
 void ke::Graphics::Renderer::createTextureSampler()

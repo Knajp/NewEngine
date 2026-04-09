@@ -67,9 +67,6 @@ ke::Graphics::Text::GlyphInfo ke::Graphics::Text::TextUtils::rasterizeGlyph(msdf
     info.bearingY = (int)(bounds.t * scale) + 2;
     info.internalCodepoint = codepoint;
 
-    if(codepoint == 'L' || codepoint == 'o')
-        printf("%c bounds: l=%f b=%f r=%f t=%f scale=%f\n",codepoint, l, b, r, t, scale);
-
     info.pixels.resize(info.width * info.height * 4); // RGBA across every pixel
 
     for(int y = 0; y < info.height; y++)
@@ -131,9 +128,6 @@ void ke::Graphics::Text::Font::rasterizeGlyphs(int min, int max)
     {
         auto& glyph = mGlyphs[rect.id];
 
-        if(rect.id == 'H')
-            std::cout << "H params, rectX: " << rect.x << ", rectY: " << rect.y << ", Internal Codepoint: " << (char)glyph.internalCodepoint << "\n";
-
         glyph.atlasX = rect.x;
         glyph.atlasY = rect.y;
         glyph.u0 = rect.x / (float)ATLAS_SIZE;
@@ -151,8 +145,6 @@ void ke::Graphics::Text::Font::rasterizeGlyphs(int min, int max)
 
 ke::Graphics::Text::GlyphInfo &ke::Graphics::Text::Font::getGlyphInfo(uint32_t codepoint)
 {
-    if (codepoint == 'H')
-        printf("getGlyphInfo FOR Hx u0=%f atlasX=%u\n", mGlyphs[codepoint].u0, mGlyphs[codepoint].atlasX);
     return mGlyphs.at(codepoint);
 }
 
@@ -170,9 +162,6 @@ ke::Graphics::Text::TextInstance::TextInstance(const std::string &text, const st
     for(char ch : text)
     {
         GlyphInfo& ginfo = font.getGlyphInfo((uint32_t)ch);
-
-        if(ch == 'L' || ch == 'o')
-            std::cout << "Bearing Y for " << ch << " is: " << ginfo.bearingY << "\n";
 
         mInstances.push_back(GlyphInstance{
             .position = { (float)(cursorX + ginfo.bearingX), (float)(y + ginfo.bearingY - ginfo.height) },

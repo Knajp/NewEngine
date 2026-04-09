@@ -112,6 +112,7 @@ namespace ke
             VkShaderModule createShaderModule(const std::vector<char>& code);
             void createRenderPass();
             void createFontRenderPass();
+            void createSceneRenderPass();
 
             void createFramebuffers();
             void createCommandPool();
@@ -129,7 +130,7 @@ namespace ke
 
             void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,  VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory );
             void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& memory);
-            VkImageView createImageView(VkImage image, VkFormat format, uint32_t mipLevels);
+            VkImageView createImageView(VkImage image, VkFormat format, uint32_t mipLevels, VkImageAspectFlags aspectFlags);
             void generateMipmaps(VkImage image, VkFormat format, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
             uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -141,6 +142,10 @@ namespace ke
             void createDescriptorPool();
             void createDescriptorSets();
 
+            void createDepthResources();
+            VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags flags);
+            VkFormat findDepthFormat();
+            bool hasStencilComponent(VkFormat format);
 
             void createTextureSampler();
             void createFontSampler();
@@ -177,6 +182,7 @@ namespace ke
             VkPipeline mFontPipeline;
 
             VkRenderPass mRenderPass;
+            VkRenderPass mSceneRenderPass;
             VkRenderPass mFontRenderPass;
 
             VkPipeline mDisplayPipeline;
@@ -213,6 +219,8 @@ namespace ke
             std::vector<VkDescriptorSet> mSceneDescriptorSets;
             VkDescriptorSet mTextureDescriptorSet;
             VkDescriptorSet mFontDescriptorSet;
+
+            util::Image mDepthImage;
 
             bool  USE_BINDLESS_TXT = false;
             uint32_t MAX_TEXTURES = 0;
