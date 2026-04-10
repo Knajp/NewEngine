@@ -160,11 +160,16 @@ void ke::Graphics::Renderer::updateUIUniforms(float aspectRatio)
 
 void ke::Graphics::Renderer::updateSceneUniforms(float aspectRatio)
 {
-    util::UniformBufferObject ubo{};
-    ubo.model = glm::mat4(1.0f);
-    ubo.proj = glm::ortho(-aspectRatio, aspectRatio, -1.0f, 1.0f, -1.0f, 1.0f);
-    ubo.view = glm::mat4(1.0f);
+    static auto startTime = std::chrono::high_resolution_clock::now();
 
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    std::cout << "Scene aspect ratio is: " << aspectRatio << "\n";
+    util::UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f) );
+    ubo.proj = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
+    ubo.view = glm::lookAt(glm::vec3{1.0f, 1.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
     ubo.proj[1][1] *= -1;
 
     memcpy(sceneUniformBuffersMapped[currentFrameInFlight], &ubo, sizeof(ubo));
@@ -1092,7 +1097,6 @@ void ke::Graphics::Renderer::createFontPipeline()
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = stageInfos;
     pipelineInfo.pVertexInputState = &vertexInput;
@@ -1254,11 +1258,11 @@ void ke::Graphics::Renderer::createSceneRenderPass()
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = mSwapchainFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentDescription depthAttachment{};
@@ -1612,6 +1616,22 @@ void ke::Graphics::Renderer::bindUIPipeline(VkCommandBuffer buffer)
 
 void ke::Graphics::Renderer::bindScenePipeline(VkCommandBuffer buffer, const VkViewport& viewport, const VkRect2D& scissor)
 {
+    VkRenderPassBeginInfo renderBegin{};
+    renderBegin.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderBegin.renderPass = mSceneRenderPass;
+    renderBegin.framebuffer = mSwapchainFramebuffers[currentImageIndex];
+    renderBegin.renderArea.offset = {0,0};
+    renderBegin.renderArea.extent = mSwapchainExtent;
+
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f , 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+
+    renderBegin.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderBegin.pClearValues = clearValues.data();
+    
+    vkCmdBeginRenderPass(buffer, &renderBegin, VK_SUBPASS_CONTENTS_INLINE);
+
     vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mDisplayPipeline);
     vkCmdBindDescriptorSets(buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 1, 1, &mSceneDescriptorSets[currentFrameInFlight], 0, nullptr);
 

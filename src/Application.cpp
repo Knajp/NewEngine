@@ -76,6 +76,7 @@ void ke::Core::Application::run()
 
         mUIManager.drawComponents(cb);
 
+        mRenderer.endRenderPass();
         mRenderer.bindScenePipeline(cb, mSceneManager.getViewport(), mSceneManager.getScissor());
 
         mSceneManager.drawScene();
