@@ -35,6 +35,8 @@ namespace ke
 
             void finishDraw(GLFWwindow* window);
 
+            glm::ivec2 getSwapchainDimensions() const;
+
             void createTextureImage(const std::string& filepath, util::Image& image);
             void createTextureImageView(util::Image& image);
             uint32_t addTextureToDescriptor(const util::Image& image);

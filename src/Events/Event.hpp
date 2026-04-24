@@ -16,7 +16,7 @@ namespace ke
         enum class EventType
         {
             None = 0,
-            KeyPressedEvent, KeyReleasedEvent,
+            KeyPressedEvent, KeyReleasedEvent, TextInputEvent,
             WindowResizedEvent, WindowClosedEvent,
             MousePressedEvent, MouseReleasedEvent, MouseMovedEvent,
             WindowFramebufferResizedEvent

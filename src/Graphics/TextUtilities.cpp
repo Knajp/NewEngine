@@ -103,6 +103,11 @@ ke::Graphics::Text::Font::~Font()
     mImage.destroy();
 }
 
+double ke::Graphics::Text::Font::getEmSize() const
+{
+    return mEmSize;
+}
+
 void ke::Graphics::Text::Font::rasterizeGlyphs(int min, int max)
 {
     TextUtils& textutils = TextUtils::getInstance();
@@ -112,10 +117,15 @@ void ke::Graphics::Text::Font::rasterizeGlyphs(int min, int max)
 
     }
 
+    msdfgen::FontMetrics metrics;
+    msdfgen::getFontMetrics(metrics, mFontHandle);
+    mEmSize = metrics.emSize;
+    
     stbrp_context packCtx;
     stbrp_node nodes[ATLAS_SIZE];
     stbrp_init_target(&packCtx, ATLAS_SIZE, ATLAS_SIZE, nodes, ATLAS_SIZE);
 
+    
     std::vector<stbrp_rect> rects;
     for(auto& [codepoint, glyph] : mGlyphs)
     {
@@ -153,10 +163,12 @@ uint32_t ke::Graphics::Text::Font::getDescriptorIndex() const
     return mDescriptorIndex;
 }
 
-ke::Graphics::Text::TextInstance::TextInstance(const std::string &text, const std::string &fontname, int x, int y, glm::vec4 color)
+ke::Graphics::Text::TextInstance::TextInstance(const std::string &text, const std::string &fontname, int x, int y, glm::vec4 color, int pixelSize)
 {
     TextUtils& textutils = TextUtils::getInstance();
     Font& font = textutils.getFont(fontname);
+
+    float fontScale = pixelSize / (float) font.getEmSize();
 
     int cursorX = x;
     for(char ch : text)
@@ -164,8 +176,8 @@ ke::Graphics::Text::TextInstance::TextInstance(const std::string &text, const st
         GlyphInfo& ginfo = font.getGlyphInfo((uint32_t)ch);
 
         mInstances.push_back(GlyphInstance{
-            .position = { (float)(cursorX + ginfo.bearingX), (float)(y + ginfo.bearingY - ginfo.height) },
-            .size = {ginfo.width, ginfo.height},
+            .position = { (float)(cursorX + ginfo.bearingX * fontScale), (float)(y + ginfo.bearingY * fontScale - ginfo.height * fontScale) },
+            .size = {ginfo.width * fontScale, ginfo.height * fontScale},
             .uv = {ginfo.u0, ginfo.v0, ginfo.u1, ginfo.v1},
             .color = color,
         });

@@ -6,6 +6,7 @@
 #include "Logger.hpp"
 #include <glm/glm.hpp>
 #include <functional>
+#include "../Graphics/TextUtilities.hpp"
 
 namespace ke
 {
@@ -13,7 +14,7 @@ namespace ke
     {
         enum class UIType
         {
-            TypeFrame, TypeButton
+            TypeFrame, TypeButton, TypeInputField
         };
         #define GUI_TYPE(type) static UIType getStaticType() {return UIType::type;} \
             UIType getType() const override {return getStaticType();}
@@ -58,6 +59,52 @@ namespace ke
             std::string buttonID;
             GUI_TYPE(TypeButton)
         };
+
+        enum InputType
+        {
+            TEXT, NUMBER, MAX_ENUM
+        };
+        struct InputValue
+        {
+            std::string val;
+            glm::vec3 color;
+        };
+        class InputField : public Element
+        {
+        public: 
+            InputField() = default;
+            InputField(float _x, float _y, float _w, float _h, glm::vec3 _color, std::string _placeholder, InputType _type)
+                : Element(_x, _y, _w, _h, _color), mPlaceholder(_placeholder), mType(_type) {}
+
+            void setValue(const std::string& newValue) {mValue = newValue;}
+            InputValue getValue()
+            {
+                InputValue value{};
+                if(mValue.empty() || mValue == "")
+                    {value.val = mPlaceholder; value.color = glm::vec3(0.3f);}
+                else
+                    {value.val = mValue; value.color = glm::vec3(1.0f);}
+
+                return value;
+            }
+            std::string getRawValue() const
+            {
+                return mValue;
+            }
+
+            void setTextInstance(ke::Graphics::Text::TextInstance& textInstance)
+            {
+                mTextInstance = std::move(textInstance);
+            }
+            GUI_TYPE(TypeInputField) 
+
+            void DrawText() const;
+        private:
+            std::string mPlaceholder;
+            std::string mValue;   
+            InputType mType;
+            ke::Graphics::Text::TextInstance mTextInstance;
+        };
     };
     namespace util
     {
@@ -71,7 +118,7 @@ namespace ke
                 return instance;
             }
 
-            void parseFile(std::string filepath, std::vector<std::unique_ptr<gui::Element>>& elements, std::vector<gui::Button>& buttons);
+            void parseFile(std::string filepath, std::vector<std::unique_ptr<gui::Element>>& elements);
             void parseSceneFile(std::string filepath, glm::ivec2& offset, glm::ivec2& extent, int wx, int wy);
         private:
             XML() = default;

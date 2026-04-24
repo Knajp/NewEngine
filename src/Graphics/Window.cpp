@@ -20,6 +20,14 @@ static void keyCallback(GLFWwindow* window, int key, int scancode, int action, i
 	else std::cerr << "Invalid GLFW action value!\n";
 }
 
+static void charCallback(GLFWwindow* window, unsigned int codepoint)
+{
+	auto& self = *(ke::Graphics::Window*)glfwGetWindowUserPointer(window);
+
+	ke::Events::TextInputEvent ev((char)codepoint);
+	self.event(ev);
+}
+
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 	auto& self = *(ke::Graphics::Window*)glfwGetWindowUserPointer(window);
@@ -65,6 +73,7 @@ ke::Graphics::Window::Window(uint16_t width, uint16_t height, const char* title)
 	glfwSetKeyCallback(pWindow, keyCallback);
 	glfwSetCursorPosCallback(pWindow, mouseMoveCallback);
 	glfwSetMouseButtonCallback(pWindow, mouseButtonCallback);
+	glfwSetCharCallback(pWindow, charCallback);
 }
 
 ke::Graphics::Window::~Window()

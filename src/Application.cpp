@@ -32,6 +32,10 @@ void ke::Core::Application::init()
     mRenderer.init(mWindow->getWindowHandle());
     mLogger.trace("Finished initializing renderer.");
 
+    mLogger.trace("Requesting Text Utils init.");
+    mTextUtils.init();
+    mLogger.info("Finished loading text utils.");
+
     mLogger.trace("Requesting UI manager load");
     mUIManager.loadComponents(mWindow->getWindowHandle());
     mLogger.info("Finished loading UI manager.");
@@ -40,9 +44,6 @@ void ke::Core::Application::init()
     mTextureManager.init();
     mLogger.info("Finished loading texture manager.");
     
-    mLogger.trace("Requesting Text Utils init.");
-    mTextUtils.init();
-    mLogger.info("Finished loading text utils.");
 
     audioFuture.get();
 
@@ -61,7 +62,7 @@ void ke::Core::Application::run()
     mAudioManager.PlayAudio(musicIndex);
 
 
-    Graphics::Text::TextInstance text("Hello, Flavortown!", "DejaVuSans", 200, 500, {0.0f, 1.0f, 0.0f, 1.0f});
+    Graphics::Text::TextInstance text("Hello, Flavortown!", "DejaVuSans", 200, 500, {0.0f, 1.0f, 0.0f, 1.0f}, 32);
     while (!mWindow->shouldClose())
     {
 
@@ -86,6 +87,7 @@ void ke::Core::Application::run()
         mRenderer.updateFontUniforms();
 
         text.Draw();
+        mUIManager.drawComponentTextLabels();
         
         mRenderer.endRenderPass();
         mRenderer.finishDraw(mWindow->getWindowHandle());
@@ -139,10 +141,11 @@ void ke::Core::Application::onEvent(Events::Event &ev)
     {
         Application& app = Application::getInstance();
 
-        std::cout << "KEY PRESSED, keycode: " << e.getKeyCode() << "\n";
-
+        if(app.mUIManager.processFunctionalKey(e.getKeyCode()))
+            return true;
+        
         if(e.getKeyCode() == GLFW_KEY_Q && app.mWindow->isKeyPressed(GLFW_KEY_LEFT_CONTROL)) // LCTRL + Q = QUIT
-            app.mWindow->quit();
+            {app.mWindow->quit(); return true;}
         
         return true;
     });
@@ -178,6 +181,14 @@ void ke::Core::Application::onEvent(Events::Event &ev)
         if(e.getButton() == GLFW_MOUSE_BUTTON_LEFT)
             app.mUIManager.processMouseClick(e.getMouseX(), e.getMouseY(), wx, wy);
 
+        return true;
+    });
+    dispatcher.Dispatch<Events::TextInputEvent>([](Events::TextInputEvent& e)
+    {
+        
+        Application& app = Application::getInstance();
+
+        app.mUIManager.processKeyboardInput(e.getCodepoint());
         return true;
     });
 }

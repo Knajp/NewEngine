@@ -165,7 +165,6 @@ void ke::Graphics::Renderer::updateSceneUniforms(float aspectRatio)
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    std::cout << "Scene aspect ratio is: " << aspectRatio << "\n";
     util::UniformBufferObject ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f) );
     ubo.proj = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 100.0f);
@@ -225,6 +224,11 @@ void ke::Graphics::Renderer::finishDraw(GLFWwindow *window)
         framebufferResized = false;
     }
     currentFrameInFlight = (currentFrameInFlight + 1) % MAXFRAMESINFLIGHT;
+}
+
+glm::ivec2 ke::Graphics::Renderer::getSwapchainDimensions() const
+{
+    return glm::ivec2(mSwapchainExtent.width, mSwapchainExtent.height);
 }
 
 void ke::Graphics::Renderer::createTextureImage(const std::string &filepath, util::Image &image)

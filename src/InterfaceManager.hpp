@@ -2,6 +2,7 @@
 #include "./Utility/RenderUtil.hpp"
 #include "./Utility/structs.hpp"
 #include "./Graphics/Renderer.hpp"
+#include "./Graphics/TextUtilities.hpp"
 #include <GLFW/glfw3.h>
 #include <filesystem>
 #include <vector>
@@ -21,15 +22,18 @@ namespace ke
             ~Component();
 
             bool pollButtonClick(int mouseX, int mouseY, int windowX, int windowY);
+            Element* pollInputFocus(int mouseX, int mouseY, int windowX, int windowY);
 
             Component(Component&& other) noexcept;
             ke::gui::Component& operator=(Component&& other) noexcept;
             
             void Draw(VkCommandBuffer commandBuffer);
+            void DrawText();
         private:
             std::vector<std::unique_ptr<gui::Element>> mFrames;
-            std::vector<gui::Button> mButtons;
-
+            std::vector<gui::Button*> mButtons;
+            std::vector<gui::InputField*> mInputFields;
+            
             util::Buffer mVertexBuffer;
             util::Buffer mIndexBuffer;
 
@@ -67,6 +71,8 @@ namespace ke
             
             void loadComponents(GLFWwindow* window);
             void drawComponents(VkCommandBuffer commandBuffer);
+            void drawComponentTextLabels();
+
             void unloadComponents();
 
             void recreateSceneComponent(GLFWwindow* window);
@@ -75,10 +81,18 @@ namespace ke
             glm::ivec2 getSceneComponentExtent() const;
 
             void processMouseClick(int mouseX, int mouseY, int windowX, int windowY);
+            void processKeyboardInput(char codepoint);
+            bool processFunctionalKey(int key);
+
+            bool isFocused() const {return mFocused;}
+
         private:
             UImanager() = default;
 
-            std::vector<Component> mComponents;
+            bool mFocused = false;
+            gui::Element* pFocusedElement = nullptr;
+
+            std::vector<std::unique_ptr<Component>> mComponents;
             SceneComponent mSceneComponent;
 
             std::string sceneComponentFilepath;

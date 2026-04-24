@@ -83,6 +83,7 @@ namespace ke
                 Font(const std::string& filepath, msdfgen::FreetypeHandle* lib);
                 ~Font();
                 
+                double getEmSize() const;
                 void rasterizeGlyphs(int min, int max);
                 GlyphInfo& getGlyphInfo(uint32_t codepoint);
                 uint32_t getDescriptorIndex() const;
@@ -91,6 +92,7 @@ namespace ke
                 std::unordered_map<uint32_t, GlyphInfo> mGlyphs;
                 static const unsigned int ATLAS_SIZE = 2048;
 
+                double mEmSize;
                 util::Image mImage;
                 uint32_t mDescriptorIndex;
             };
@@ -126,8 +128,9 @@ namespace ke
             class TextInstance
             {
             public:
-                TextInstance(const std::string& text, const std::string& font, int x, int y, glm::vec4 color);
-               
+                TextInstance(const std::string& text, const std::string& font, int x, int y, glm::vec4 color, int pixelSize);
+                TextInstance() = default;
+                
                 void Draw() const;
 
             private:

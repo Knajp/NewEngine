@@ -42,5 +42,20 @@ namespace ke
             EVENT_TYPE(KeyReleasedEvent)
             EVENT_CATEGORY(KeyboardEvent)
         };
+
+        
+        class TextInputEvent : public Event
+        {
+        public:
+            EVENT_CATEGORY(KeyboardEvent)
+            EVENT_TYPE(TextInputEvent)
+        
+            TextInputEvent(int codepoint)
+                : Event(), mCodepoint(codepoint) {}
+            
+            char getCodepoint() const {return mCodepoint;}
+        private:
+            char mCodepoint;
+        };
     }
 }
