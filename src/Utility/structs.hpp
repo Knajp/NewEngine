@@ -3,6 +3,7 @@
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.h>
 #include <array>
+#include <glm/gtx/hash.hpp>
 
 namespace ke
 {
@@ -85,8 +86,26 @@ namespace ke
 
                     return desc;
                 }
+
+                bool operator==(const Vertex3P3C2T& other) const
+                {
+                    return pos == other.pos && color == other.color && uv == other.uv;
+                }
             };
         }
         
     }
+}
+
+namespace std
+{
+    template<> struct hash<ke::util::str::Vertex3P3C2T>
+    {
+        size_t operator()(ke::util::str::Vertex3P3C2T const& vertex) const
+        {
+            return ((hash<glm::vec3>()(vertex.pos) ^
+                    (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+                    (hash<glm::vec2>()(vertex.uv) << 1);
+        }
+    };
 }

@@ -16,10 +16,10 @@ namespace ke
         util::Buffer vertexBuffer;
         
         std::vector<ke::util::str::Vertex3P3C2T> mVertices;
-        std::vector<uint16_t> mIndices;
+        std::vector<uint32_t> mIndices;
 
         Mesh() = default;
-        Mesh(const std::vector<util::str::Vertex3P3C2T>& vertices, const std::vector<uint16_t>& indices)
+        Mesh(const std::vector<util::str::Vertex3P3C2T>& vertices, const std::vector<uint32_t>& indices)
         {
             VkDeviceSize verticesSize = sizeof(vertices[0]) * vertices.size();
             VkDeviceSize indexSize = sizeof(indices[0]) * indices.size();
@@ -38,7 +38,55 @@ namespace ke
 
         Mesh(const std::string objFilePath)
         {
+            tinyobj::attrib_t attrib;
+            std::vector<tinyobj::shape_t> shapes;
+            std::vector<tinyobj::material_t> materials;
+            std::string err, wrn;
 
+            if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &wrn, &err, "src/Models/viking_room.obj"))
+                throw std::runtime_error("Failed to load viking room model;");
+
+
+            std::unordered_map<util::str::Vertex3P3C2T, uint32_t> uniqueVertices{};
+
+            for(const auto& shape : shapes)
+            {
+                for(const auto& index : shape.mesh.indices)
+                {
+                    util::str::Vertex3P3C2T vertex{};
+
+                    vertex.pos = {
+                        attrib.vertices[3 * index.vertex_index + 0],
+                        attrib.vertices[3 * index.vertex_index + 1],
+                        attrib.vertices[3 * index.vertex_index + 2],
+                    };
+
+                    vertex.uv = {
+                        attrib.texcoords[2 * index.texcoord_index + 0],
+                        1.0f - attrib.texcoords[2 * index.texcoord_index + 1],
+                    };
+
+                    vertex.color = {1.0f, 1.0f, 1.0f};
+
+                    if(uniqueVertices.count(vertex) == 0)
+                    {
+                        uniqueVertices[vertex] = static_cast<uint32_t>(mVertices.size());
+                    }
+                    mVertices.push_back(vertex);
+                    mIndices.push_back(uniqueVertices[vertex]);
+                }
+            }
+
+            VkDeviceSize verticesSize = sizeof(mVertices[0]) * mVertices.size();
+            VkDeviceSize indexSize = sizeof(mIndices[0]) * mIndices.size();
+
+            ke::Graphics::Renderer& rend = ke::Graphics::Renderer::getInstance();
+
+            indexBuffer.setDevice(rend.getDevice());
+            vertexBuffer.setDevice(rend.getDevice());
+
+            rend.createVertexBuffer<util::str::Vertex3P3C2T>(mVertices, vertexBuffer.buffer, vertexBuffer.bufferMemory);
+            rend.createIndexBuffer(mIndices, indexBuffer.buffer, indexBuffer.bufferMemory);
         }
             
         Mesh(const Mesh& other) = delete;

@@ -72,7 +72,7 @@ namespace ke
             
             }
 
-            void createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
+            void createIndexBuffer(const std::vector<uint32_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
             void createGlyphInstanceBuffer(const std::vector<Text::GlyphInstance>& instances, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory);
 
             void endRenderPass();
@@ -83,7 +83,7 @@ namespace ke
 
             void pickTextureIndex(int32_t index) const;
             void pickFontIndex(int32_t index) const;
-            void drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint16_t indexCount) const;
+            void drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint32_t indexCount) const;
             void drawText(const util::Buffer& instanceBuffer, uint32_t instanceCount) const;
             
             VkDevice getDevice() const;

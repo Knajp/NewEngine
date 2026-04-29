@@ -85,11 +85,13 @@ void ke::util::XML::parseFile(std::string filepath, std::vector<std::unique_ptr<
         
         const char* placeholder = inputField.attribute("placeholder").as_string();
 
+        const char* inputName = inputField.attribute("name").as_string();
+
         const char* inputType = inputField.attribute("type").as_string();
         if(strcmp(inputType, "text") == 0)
-            elements.push_back(std::make_unique<gui::InputField>(x,y,w,h, glm::vec3(rf, gf, bf), (std::string)placeholder, gui::InputType::TEXT));
+            elements.push_back(std::make_unique<gui::InputField>(x,y,w,h, glm::vec3(rf, gf, bf), (std::string)placeholder, gui::InputType::TEXT, (std::string)inputName));
         else if(strcmp(inputType, "number") == 0)
-            elements.push_back(std::make_unique<gui::InputField>(x,y,w,h, glm::vec3(rf, gf, bf), (std::string)placeholder, gui::InputType::NUMBER));
+            elements.push_back(std::make_unique<gui::InputField>(x,y,w,h, glm::vec3(rf, gf, bf), (std::string)placeholder, gui::InputType::NUMBER, (std::string)inputName));
 
             
     }

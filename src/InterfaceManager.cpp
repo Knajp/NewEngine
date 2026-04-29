@@ -1,70 +1,41 @@
 #include "InterfaceManager.hpp"
 #include "SceneManager.hpp"
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tinyobjloader/tiny_obj_loader.h>
+#include <filesystem>
 
 std::unordered_map<std::string, std::function<void()>> ke::gui::Component::mHandlers = 
 {
     {"addelement", []() 
     {
-        util::Mesh mesh(
-        {
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        util::Mesh mesh("src/Model/viking_room.obj");
 
-            {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-
-            {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-
-            {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-            {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-
-            {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-            {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-
-            {{-0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},
-            {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-            {{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-            {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-
-        },
-        {
-            3, 2, 0,
-            3, 0, 1,
-
-            7, 6, 4,
-            7, 4, 5,
-
-            11, 10, 8,
-            11, 8, 9,
-
-            15, 14, 12,
-            15, 12, 13,
-
-            19, 18, 16,
-            19, 16, 17,
-
-            23, 22, 20,
-            23, 20, 21
-        }
-        );
         SceneObject object;
         object.loadMesh(mesh);
-        object.setTexture("brick");
+        object.setTexture("viking_room");
 
         SceneManager& sceneManager = SceneManager::getInstance();
         sceneManager.addObjectToScene(std::make_unique<SceneObject>(std::move(object)));
 
+    }},
+    {"submitinput", []()
+    {
+        UImanager& uiman = UImanager::getInstance();
+
+        std::string filename = uiman.getInputFieldValue("objfile");
+
+        std::string filepath = "src/Models/" + filename + ".obj";
+        std::string texturepath = "src/Textures/" + filename + ".png";
+
+        util::Mesh mesh(filepath);
+
+        SceneObject object;
+        object.loadMesh(mesh);
+        if(std::filesystem::exists(texturepath))
+            object.setTexture(filename);
+
+        SceneManager& sceneManager = SceneManager::getInstance();
+        sceneManager.addObjectToScene(std::make_unique<SceneObject>(std::move(object)));
     }}
 };
 ke::gui::Component::Component(std::string filepath)
@@ -120,7 +91,6 @@ ke::gui::Component::Component(std::string filepath)
             ke::Graphics::Text::TextInstance textInstance = ke::Graphics::Text::TextInstance(value.val, "DejaVuSans", pixelX, pixelY, glm::vec4(value.color.r, value.color.g, value.color.b, 1.0f), pixelH);
 
             field->setTextInstance(textInstance);
-            std::cout << "Pushing back an input field\n";
 
             mInputFields.push_back(field);
         }
@@ -216,7 +186,7 @@ void ke::gui::Component::Draw(VkCommandBuffer commandBuffer)
 
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(commandBuffer, mIndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, mIndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(mIndices.size()), 1, 0, 0, 0);
 
@@ -228,6 +198,18 @@ void ke::gui::Component::DrawText()
     {
         field->DrawText();
     }
+}
+
+bool ke::gui::Component::getInputFieldValue(const std::string &name, std::string &value)
+{
+    for(auto inputField : mInputFields)
+    {
+        if(inputField->name != name) continue;
+        
+        value = inputField->getRawValue();
+        return true;
+    }
+    return false;
 }
 
 void ke::gui::UImanager::loadComponents(GLFWwindow* window)
@@ -374,6 +356,17 @@ bool ke::gui::UImanager::processFunctionalKey(int key)
 
     return false;
 
+}
+
+std::string ke::gui::UImanager::getInputFieldValue(const std::string& name) const
+{
+    std::string value = "";
+    for(const auto& comp : mComponents)
+    {
+        if(comp->getInputFieldValue(name, value)) break;
+    }
+
+    return value;
 }
 
 ke::gui::SceneComponent::SceneComponent(std::string filepath, GLFWwindow* window)

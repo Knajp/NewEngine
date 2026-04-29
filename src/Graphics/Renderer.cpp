@@ -1549,7 +1549,7 @@ void ke::Graphics::Renderer::endSingleTimeCommands(VkCommandBuffer commandBuffer
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &commandBuffer);
 }
 
-void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint16_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)
+void ke::Graphics::Renderer::createIndexBuffer(const std::vector<uint32_t>& indices, VkBuffer& targetBuffer, VkDeviceMemory& targetMemory)
 {
     VkDeviceSize size = sizeof(indices[0]) * indices.size();
 
@@ -1690,7 +1690,7 @@ void ke::Graphics::Renderer::pickFontIndex(int32_t index) const
     vkCmdPushConstants(mCommandBuffers[currentFrameInFlight], mFontPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int32_t), &index);
 }
 
-void ke::Graphics::Renderer::drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint16_t indexCount) const
+void ke::Graphics::Renderer::drawBuffersIndexed(const util::Buffer& vertexBuffer, const util::Buffer& indexBuffer, uint32_t indexCount) const
 {
     assert(vertexBuffer.buffer != VK_NULL_HANDLE);
     assert(indexBuffer.buffer != VK_NULL_HANDLE);
@@ -1699,7 +1699,7 @@ void ke::Graphics::Renderer::drawBuffersIndexed(const util::Buffer& vertexBuffer
 
     VkDeviceSize offsets[] = {0};
 
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
 
     vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);

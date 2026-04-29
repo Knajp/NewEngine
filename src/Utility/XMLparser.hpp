@@ -73,8 +73,8 @@ namespace ke
         {
         public: 
             InputField() = default;
-            InputField(float _x, float _y, float _w, float _h, glm::vec3 _color, std::string _placeholder, InputType _type)
-                : Element(_x, _y, _w, _h, _color), mPlaceholder(_placeholder), mType(_type) {}
+            InputField(float _x, float _y, float _w, float _h, glm::vec3 _color, std::string _placeholder, InputType _type, std::string _name)
+                : Element(_x, _y, _w, _h, _color), mPlaceholder(_placeholder), mType(_type), name(_name) {}
 
             void setValue(const std::string& newValue) {mValue = newValue;}
             InputValue getValue()
@@ -99,9 +99,13 @@ namespace ke
             GUI_TYPE(TypeInputField) 
 
             void DrawText() const;
+
+            std::string name;
+
         private:
             std::string mPlaceholder;
             std::string mValue;   
+
             InputType mType;
             ke::Graphics::Text::TextInstance mTextInstance;
         };

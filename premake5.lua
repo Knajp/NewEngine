@@ -51,7 +51,7 @@ project "NewEngine"
 
     files { "**.h", "**.c", "**.cpp", "**.hpp" }
     removefiles { "vendor/**" }
-    defines {"GLFW_INCLUDE_VULKAN", "STB_IMAGE_IMPLEMENTATION"}
+    defines {"GLFW_INCLUDE_VULKAN", "STB_IMAGE_IMPLEMENTATION", "GLM_ENABLE_EXPERIMENTAL"}
 
     filter "system:linux"
         libdirs { "./vendor/lib", "/usr/local/lib" }

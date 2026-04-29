@@ -29,6 +29,8 @@ namespace ke
             
             void Draw(VkCommandBuffer commandBuffer);
             void DrawText();
+
+            bool getInputFieldValue(const std::string& name, std::string& value);
         private:
             std::vector<std::unique_ptr<gui::Element>> mFrames;
             std::vector<gui::Button*> mButtons;
@@ -38,7 +40,7 @@ namespace ke
             util::Buffer mIndexBuffer;
 
             std::vector<util::str::Vertex2P3C2T> mVertices;
-            std::vector<uint16_t> mIndices;
+            std::vector<uint32_t> mIndices;
 
             static std::unordered_map<std::string, std::function<void()>> mHandlers;
         };
@@ -85,6 +87,7 @@ namespace ke
             bool processFunctionalKey(int key);
 
             bool isFocused() const {return mFocused;}
+            std::string getInputFieldValue(const std::string& name) const;
 
         private:
             UImanager() = default;

@@ -62,7 +62,6 @@ void ke::Core::Application::run()
     mAudioManager.PlayAudio(musicIndex);
 
 
-    Graphics::Text::TextInstance text("Hello, Flavortown!", "DejaVuSans", 200, 500, {0.0f, 1.0f, 0.0f, 1.0f}, 32);
     while (!mWindow->shouldClose())
     {
 
@@ -86,7 +85,6 @@ void ke::Core::Application::run()
         mRenderer.bindFontPipeline(cb);
         mRenderer.updateFontUniforms();
 
-        text.Draw();
         mUIManager.drawComponentTextLabels();
         
         mRenderer.endRenderPass();
