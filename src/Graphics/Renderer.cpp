@@ -1775,13 +1775,15 @@ void ke::Graphics::Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, properties);
-    allocInfo.allocationSize = size;
+    allocInfo.allocationSize = memReq.size;
+
+    if(allocInfo.allocationSize < memReq.size)
+        mLogger.error("Insufficient memory being allocated!");
 
     if(vkAllocateMemory(mDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
         mLogger.error("Failed to allocate buffer memory!");
     
     vkBindBufferMemory(mDevice, buffer, bufferMemory, 0);
-
 
 }
 
@@ -2071,7 +2073,7 @@ void ke::Graphics::Renderer::createDescriptorPool()
     createInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
     createInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     createInfo.pPoolSizes = poolSizes.data();
-    createInfo.maxSets = static_cast<uint32_t>(MAXFRAMESINFLIGHT) * 2 + 1;
+    createInfo.maxSets = static_cast<uint32_t>(MAXFRAMESINFLIGHT) * 2 + 2;
 
     if(vkCreateDescriptorPool(mDevice, &createInfo, nullptr, &mDescriptorPool) != VK_SUCCESS)
         mLogger.error("Failed to create descritpor pool!");
@@ -2122,7 +2124,7 @@ void ke::Graphics::Renderer::createDescriptorSets()
     if(vkAllocateDescriptorSets(mDevice, &allocInfo, mUIDescriptorSets.data()) != VK_SUCCESS)
         mLogger.error("Failed to allocate descriptor sets!");
     
-    if(vkAllocateDescriptorSets(mDevice, &allocInfo, mSceneDescriptorSets.data()))
+    if(vkAllocateDescriptorSets(mDevice, &allocInfo, mSceneDescriptorSets.data()) != VK_SUCCESS)
         mLogger.error("Failed to allocate Scene descriptor sets");
 
     if(vkAllocateDescriptorSets(mDevice, &tAllocInfo, &mTextureDescriptorSet) != VK_SUCCESS)

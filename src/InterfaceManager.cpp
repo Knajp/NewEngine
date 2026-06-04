@@ -164,7 +164,7 @@ void ke::gui::Component::Draw(VkCommandBuffer commandBuffer)
 
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(mIndices.size()), 1, 0, 0, 0);
 
-    if(pExplorerElement != nullptr || !pExplorerElement)
+    if(pExplorerElement)
         pExplorerElement->DrawGeometry();
 }
 
