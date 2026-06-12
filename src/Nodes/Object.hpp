@@ -4,6 +4,7 @@
 #include <span>
 #include "../Utility/RenderUtil.hpp"
 #include "../Utility/structs.hpp"
+#include "../Graphics/Renderer.hpp"
 
 namespace ke
 {
@@ -291,7 +292,9 @@ namespace ke
             */
             void Draw() const
             {
+                ke::Graphics::Renderer& rend = ke::Graphics::Renderer::getInstance();
 
+                rend.drawBuffersIndexed(mVertexBuffer, mIndexBuffer, static_cast<uint32_t>(mIndices.size()));
             }
         private:
             /**

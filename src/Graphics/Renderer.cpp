@@ -33,6 +33,27 @@ ke::Graphics::Renderer &ke::Graphics::Renderer::getInstance()
     return instance;
 }
 
+glm::ivec2 ke::Graphics::Renderer::normalizedToPixel(glm::vec2 norm)
+{
+    ke::Graphics::Renderer& rend = ke::Graphics::Renderer::getInstance();
+    glm::ivec2 dims = rend.getSwapchainDimensions();
+
+    return {
+    static_cast<int>((norm.x + 1.0f) * 0.5f * (dims.x - 1)),
+    static_cast<int>((norm.y + 1.0f) * 0.5f * (dims.y - 1))
+    };
+}
+glm::vec2 ke::Graphics::Renderer::pixelToNormalized(glm::ivec2 pix)
+{
+    ke::Graphics::Renderer& rend = ke::Graphics::Renderer::getInstance();
+    glm::ivec2 dims = rend.getSwapchainDimensions();
+
+    return {
+        2.0f * static_cast<float>(pix.x) / (dims.x - 1) - 1.0f,
+        2.0f * static_cast<float>(pix.y) / (dims.y - 1) - 1.0f
+    };
+}
+
 void ke::Graphics::Renderer::init(GLFWwindow* window)
 {
     mLogger.trace("Initializing renderer.");
