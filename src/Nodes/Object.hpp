@@ -277,10 +277,51 @@ namespace ke
         };
 
         /**
+         * @brief The parent class for user-used object.
+         * 
+         */
+        class UserObject : public DefaultObject
+        {
+        public:
+            UserObject(std::string _name = "UserObject")
+                :DefaultObject(_name) {}
+            /**
+            * @brief Draws the UserObject.
+            * 
+            */
+            void Draw() const
+            {
+
+            }
+        private:
+            /**
+             * @brief The vertex buffer (Vulkan Resource)
+             * 
+             */
+            ke::util::Buffer mVertexBuffer;
+            /**
+             * @brief The index buffer (Vulkan Resource)
+             * 
+             */
+            ke::util::Buffer mIndexBuffer;
+
+            /**
+             * @brief The vertices
+             * 
+             */
+            std::vector<ke::util::str::Vertex2P3C2T> mVertices;
+            /**
+             * @brief The indices
+             * 
+             */
+            std::vector<uint16_t> mIndices;
+        };
+
+        /**
          * @brief Basic 2D Node, to be used as base for 2D objects.
          * 
          */
-        class Node2D : public DefaultObject
+        class Node2D : public UserObject
         {
         public:
         /**
@@ -289,7 +330,7 @@ namespace ke
          * @param _name The object's name, preset to "Node2D"
          */
             Node2D(std::string _name = "Node2D")
-                : DefaultObject(_name) {}
+                : UserObject(_name) {}
 
 
         /**
@@ -333,35 +374,13 @@ namespace ke
              * 
              */
             float mScale;
-
-            /**
-             * @brief The vertex buffer (Vulkan Resource)
-             * 
-             */
-            ke::util::Buffer mVertexBuffer;
-            /**
-             * @brief The index buffer (Vulkan Resource)
-             * 
-             */
-            ke::util::Buffer mIndexBuffer;
-
-            /**
-             * @brief The vertices
-             * 
-             */
-            std::vector<ke::util::str::Vertex2P3C2T> mVertices;
-            /**
-             * @brief The indices
-             * 
-             */
-            std::vector<uint16_t> mIndices;
         };
 
         /**
          * @brief Basic 3D Node, to be used as a base for other 3D objects.
          * 
          */
-        class Node3D : public DefaultObject
+        class Node3D : public UserObject
         {
         public:
         /**
@@ -370,7 +389,7 @@ namespace ke
          * @param _name The object's name, preset to "Node3D"
          */
             Node3D(std::string _name = "Node3D")
-                : DefaultObject(_name) {}
+                : UserObject(_name) {}
         
         /**
          * @brief Set the object's screen position.

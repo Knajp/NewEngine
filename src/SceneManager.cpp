@@ -23,14 +23,9 @@ void ke::SceneManager::drawScene() const
 {
     for(auto node : pSceneObject->gatherDescendants())
     {
-        if(auto* node2D = dynamic_cast<nodes::Node2D*>(node))
-        {
+        nodes::UserObject* userObject = dynamic_cast<nodes::UserObject*>(node);
 
-        }
-        else if(auto* node3D = dynamic_cast<nodes::Node3D*>(node))
-        {
-
-        }
+        userObject->Draw();
     }
 }
 
