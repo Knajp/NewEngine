@@ -63,19 +63,8 @@ void ke::Core::Application::run()
     uint16_t musicIndex = mAudioManager.createAudio("src/Sounds/music.mp3", AL_TRUE, 1.0f, 1.0f, "music");
     mAudioManager.PlayAudio(musicIndex);
 
-<<<<<<< HEAD
     nodes::ISceneObject* pSceneObject = mSceneManager.getSceneObject();
     nodes::Rect2D* rect = pSceneObject->createChild<nodes::Rect2D>(0,0,500,500, "Hello!");
-=======
-<<<<<<< HEAD
-    nodes::ISceneObject* sceneObject = mSceneManager.getSceneObject();
-    //sceneObject->createChild<nodes::Rect2D>(0, 0, 500, 500);
-    //mLogger.info("Created a child");
-=======
-    nodes::ISceneObject* pSceneObject = mSceneManager.getSceneObject();
-    nodes::Rect2D* rect = pSceneObject->createChild<nodes::Rect2D>(0,0,500,500, "Hello!");
->>>>>>> main
->>>>>>> bugFixes
 
     while (!mWindow->shouldClose())
     {
