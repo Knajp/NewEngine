@@ -150,16 +150,41 @@ namespace ke
         
         nodes::ISceneObject* const getSceneObject() const
         {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+            assert(mRootObject != nullptr);
+            
+            if(pSceneObject)
+                return pSceneObject;
+            
+            auto children = mRootObject->getChildren();
+            if(children.empty())
+                return nullptr;
+=======
+>>>>>>> bugFixes
             if(pSceneObject)
                 return pSceneObject;
             
             auto children = mRootObject.getChildren();
             if(children.empty()) return nullptr;
+<<<<<<< HEAD
+=======
+>>>>>>> main
+>>>>>>> bugFixes
 
             for(auto& child : children)
                 if(child->getType() == nodes::ISceneObject::getStaticType())
                     pSceneObject = dynamic_cast<nodes::ISceneObject*>(child.get());
+<<<<<<< HEAD
         
+=======
+<<<<<<< HEAD
+            
+=======
+        
+>>>>>>> main
+>>>>>>> bugFixes
             return pSceneObject;
         }
         nodes::RootObject* const getRootObject() const
